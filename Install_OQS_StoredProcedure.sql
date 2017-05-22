@@ -1,12 +1,54 @@
+/*********************************************************************************************
+Open Query Store
+
+Copyright:
+William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
+
+https://github.com/OpenQueryStore/OpenQueryStore
+
+License: 
+	This script is free to download and use for personal, educational, and internal 
+	corporate purposes, provided that this header is preserved. Redistribution or sale 
+	of this script, in whole or in part, is prohibited without the author's express 
+	written consent.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES 
+	OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+**********************************************************************************************/
+
 USE [OpenQueryStore]
 GO
 
 CREATE PROCEDURE [dbo].[sp_OQS_Gather_Statistics]
-	@debug INT = 0
+	@debug INT = 0,
+	@logmode INT = 0
 
 	AS
 
+	DECLARE @log_logrunid INT
+	DECLARE @log_newplans INT
+	DECLARE @log_newqueries INT
+
 	BEGIN
+		
+		IF @logmode = 1
+			BEGIN
+				
+				SET @log_logrunid = (SELECT ISNULL(MAX(Log_LogRunID),0)+1 FROM OQS_Log)
+
+			END
+
+		IF @logmode =  1
+			BEGIN
+				
+				INSERT INTO OQS_Log (Log_LogRunID, Log_DateTime, Log_Message) VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore capture script started...')
+
+			END
 
 		-- Create a new interval
 		INSERT INTO OQS_Intervals
@@ -50,6 +92,13 @@ CREATE PROCEDURE [dbo].[sp_OQS_Gather_Statistics]
 		AND cp.plan_handle NOT IN (SELECT plan_handle FROM OQS_Plans)
 		AND qp.[dbid] = DB_ID()
 
+		SET @log_newplans = @@ROWCOUNT
+
+		IF @logmode =  1
+			BEGIN
+				INSERT INTO OQS_Log (Log_LogRunID, Log_DateTime, Log_Message) VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore captured ' + CONVERT(varchar, @log_newplans) + ' new plan(s)...')
+			END
+
 		-- Grab all of the queries (statement level) that are connected to the plans inside the OQS
 		;WITH CTE_Queries (plan_id, plan_handle)
 		AS
@@ -90,6 +139,13 @@ CREATE PROCEDURE [dbo].[sp_OQS_Gather_Statistics]
 		ON cte.plan_handle = qs.plan_handle
 		CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
 		WHERE qs.query_hash NOT IN (SELECT query_hash FROM OQS_Queries)
+
+		SET @log_newqueries = @@ROWCOUNT
+
+		IF @logmode =  1
+			BEGIN
+				INSERT INTO OQS_Log (Log_LogRunID, Log_DateTime, Log_Message) VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore captured ' + CONVERT(varchar, @log_newqueries) + ' new queries...')
+			END
 
 		-- Grab the interval_id of the interval we added at the beginning
 		DECLARE @Interval_ID INT = IDENT_CURRENT('OQS_Intervals')
@@ -276,8 +332,12 @@ CREATE PROCEDURE [dbo].[sp_OQS_Gather_Statistics]
 			END
 	
 	-- And we are done!
+
+	IF @logmode =  1
+		BEGIN
+			INSERT INTO OQS_Log (Log_LogRunID, Log_DateTime, Log_Message) VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore capture script finished...')
+		END
+
 	END
 	
 GO
-
-
