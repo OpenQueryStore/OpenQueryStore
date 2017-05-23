@@ -59,7 +59,7 @@ END;
 
 CREATE TABLE [oqs].[CollectionMetaData] (
     [Command] NVARCHAR(2000), -- The command that should be executed by Service Broker
-    [CollectionInterval] BIGINT NULL, -- The interval for looped processing (in seconds)
+    [CollectionInterval] INT NULL, -- The interval for looped processing (in seconds)
 	);
 GO
 
