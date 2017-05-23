@@ -116,6 +116,8 @@ GO
 CREATE PROCEDURE oqs.[StartScheduler]
 AS
 BEGIN
+	-- This stored procedure kicks off the OQSService if it isn't already running
+
     DECLARE @handle UNIQUEIDENTIFIER;
     SELECT @handle = [conversation_handle]
       FROM [sys].[conversation_endpoints]
@@ -129,7 +131,8 @@ BEGIN
         TO SERVICE 'OQSService'
         ON CONTRACT [DEFAULT]
         WITH ENCRYPTION = OFF;
-
+	
+	-- We place it onto the Service Broker Timer so that the looping in the activation stored proc can fire
         BEGIN CONVERSATION TIMER (@handle) TIMEOUT = 1;
     END;
 END;
@@ -138,6 +141,8 @@ GO
 CREATE PROCEDURE oqs.[StopScheduler]
 AS
 BEGIN
+	-- This stored procedure stops the OQSService if it is already running
+
     DECLARE @handle UNIQUEIDENTIFIER;
     SELECT @handle = [conversation_handle]
       FROM [sys].[conversation_endpoints]
@@ -233,7 +238,7 @@ CREATE TABLE [oqs].[Log](
 GO
 
 -- Create the OQS Gather_Statistics Stored Procedure
-ALTER PROCEDURE [oqs].[Gather_Statistics]
+CREATE PROCEDURE [oqs].[Gather_Statistics]
 	@debug INT = 0,
 	@logmode INT = 0
 
