@@ -24,5 +24,7 @@ A further option will allow for a centralized query store, to collect all query 
 
 Finally, a set of integrated reports inside SQL Server Management Studio will allow for analysis of the collected data.
 
+For some more details, check out the [Wiki](https://github.com/OpenQueryStore/OpenQueryStore/wiki)
+
 ## License
 [MIT](/LICENSE.md)
