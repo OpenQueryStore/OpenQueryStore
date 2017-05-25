@@ -9,7 +9,7 @@
 [forks badge]:https://img.shields.io/github/forks/OpenQueryStore/OpenQueryStore.svg
 [issues badge]:https://img.shields.io/github/issues/OpenQueryStore/OpenQueryStore.svg
 
-[licence]:https://github.com/OpenQueryStore/OpenQueryStore/blob/master/LICENSE.md
+[licence]:https://github.com/OpenQueryStore/OpenQueryStore/blob/master/LICENSE
 [stars]:https://github.com/OpenQueryStore/OpenQueryStore/stargazers
 [forks]:https://github.com/OpenQueryStore/OpenQueryStore/network
 [issues]:https://github.com/OpenQueryStore/OpenQueryStore/issues
