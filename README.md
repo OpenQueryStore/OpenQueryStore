@@ -27,4 +27,4 @@ Finally, a set of integrated reports inside SQL Server Management Studio will al
 For some more details, check out the [Wiki](https://github.com/OpenQueryStore/OpenQueryStore/wiki)
 
 ## License
-[MIT](/LICENSE.md)
+[MIT](/LICENSE)
