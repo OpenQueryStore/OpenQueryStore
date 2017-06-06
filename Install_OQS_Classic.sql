@@ -238,7 +238,7 @@ CREATE TABLE [oqs].[Log](
 GO
 
 -- Create the OQS Gather_Statistics Stored Procedure
-ALTER PROCEDURE [oqs].[Gather_Statistics]
+CREATE PROCEDURE [oqs].[Gather_Statistics]
 	@debug INT = 0,
 	@logmode INT = 0
 
@@ -301,7 +301,7 @@ ALTER PROCEDURE [oqs].[Gather_Statistics]
 		CROSS APPLY sys.dm_exec_query_plan (cp.plan_handle) qp
 		WHERE cacheobjtype = 'Compiled Plan'
 		AND (qp.query_plan IS NOT NULL AND DB_NAME(qp.[dbid]) IS NOT NULL)
-		AND SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),qp.query_plan))),3,32) NOT IN (SELECT plan_md5 FROM [oqs].[Plans])
+		AND CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),qp.query_plan))),3,32)) NOT IN (SELECT plan_md5 FROM [oqs].[Plans])
 		AND qp.[dbid] = DB_ID()
 
 		SET @log_newplans = @@ROWCOUNT
