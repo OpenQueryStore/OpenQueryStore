@@ -148,6 +148,7 @@ BEGIN
     IF @@ROWCOUNT <> 0
         END CONVERSATION @handle;
 END;
+GO
 
 -- Create the OQS tables inside the oqs schema
 CREATE TABLE [oqs].[Intervals](
