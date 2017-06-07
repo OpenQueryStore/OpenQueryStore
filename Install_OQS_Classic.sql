@@ -247,6 +247,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 	DECLARE @log_logrunid INT
 	DECLARE @log_newplans INT
 	DECLARE @log_newqueries INT
+	DECLARE @log_runtime_stats INT
 
 	BEGIN
 		
@@ -518,6 +519,13 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 		ON cte.query_id = qrs.query_id
 		WHERE qrs.interval_id = (SELECT MAX(Interval_id) FROM [oqs].[Intervals])
 
+		SET @log_runtime_stats = @@ROWCOUNT
+
+		IF @logmode =  1
+			BEGIN
+				INSERT INTO [oqs].[Log] (Log_LogRunID, Log_DateTime, Log_Message) VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore captured ' + CONVERT(varchar, @log_runtime_stats) + ' runtime statistics...')
+			END
+
 		IF @debug =  1
 			BEGIN
 				SELECT 'Snapshot of runtime statistics deltas'
@@ -559,7 +567,6 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 
 	END
 	
-
 GO
 
 -- Add indexes
