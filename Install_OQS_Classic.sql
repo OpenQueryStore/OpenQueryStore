@@ -1,7 +1,7 @@
 /*********************************************************************************************
 Open Query Store
 Classic version
-v0.2 - June 2017
+v0.3 - June 2017
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -273,6 +273,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 		-- Start execution plan insertion
 		-- Get plans from the plan cache that do not exist in the OQS_Plans table
 		-- for the database on the current context
+		;with xmlnamespaces (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
 		INSERT INTO [oqs].[Plans]
 			(
 			plan_MD5,
@@ -287,7 +288,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 			plan_executionplan
 			)
 		SELECT
-			CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),qp.query_plan))),3,32)),  
+			CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),n.query('.')))),3,32)),  
 			cp.plan_handle,
 			GETDATE(),
 			DB_NAME(qp.[dbid]),
@@ -299,10 +300,12 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 			qp.query_plan
 		FROM sys.dm_exec_cached_plans cp
 		CROSS APPLY sys.dm_exec_query_plan (cp.plan_handle) qp
+		CROSS APPLY query_plan.nodes('/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp') AS q(n)
 		WHERE cacheobjtype = 'Compiled Plan'
 		AND (qp.query_plan IS NOT NULL AND DB_NAME(qp.[dbid]) IS NOT NULL)
-		AND CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),qp.query_plan))),3,32)) NOT IN (SELECT plan_md5 FROM [oqs].[Plans])
+		AND CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),n.query('.')))),3,32)) NOT IN (SELECT plan_md5 FROM [oqs].[Plans])
 		AND qp.[dbid] = DB_ID()
+		AND query_plan.exist('//ColumnReference[@Schema = "[oqs]"]') = 0
 
 		SET @log_newplans = @@ROWCOUNT
 
@@ -556,6 +559,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 
 	END
 	
+
 GO
 
 -- Finished installation!
