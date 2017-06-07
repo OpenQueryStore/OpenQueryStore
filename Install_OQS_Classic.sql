@@ -562,4 +562,24 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 
 GO
 
+-- Add indexes
+CREATE CLUSTERED INDEX [idx_Query_id] ON [oqs].[Queries]
+	(
+	[query_id] ASC
+	)
+GO
+
+CREATE CLUSTERED INDEX [idx_Plan_id] ON [oqs].[Plans]
+	(
+	[plan_id] ASC
+	)
+GO
+
+CREATE CLUSTERED INDEX [idx_Interval_id] ON [oqs].[Intervals]
+	(
+	[Interval_id] ASC
+	)
+GO
+
+
 -- Finished installation!
