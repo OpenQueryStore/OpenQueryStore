@@ -290,7 +290,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 			plan_executionplan
 			)
 		SELECT
-			CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),n.query('.')))),3,32)),  
+			CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',CONVERT(nvarchar(max),n.query('.')))),3,32)),  
 			cp.plan_handle,
 			GETDATE(),
 			DB_NAME(qp.[dbid]),
@@ -305,7 +305,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 		CROSS APPLY query_plan.nodes('/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp') AS q(n)
 		WHERE cacheobjtype = 'Compiled Plan'
 		AND (qp.query_plan IS NOT NULL AND DB_NAME(qp.[dbid]) IS NOT NULL)
-		AND CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),n.query('.')))),3,32)) NOT IN (SELECT plan_md5 FROM [oqs].[Plans])
+		AND CONVERT(varbinary, SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5',  CONVERT(nvarchar(max),n.query('.')))),3,32)) NOT IN (SELECT plan_MD5 FROM [oqs].[Plans])
 		AND qp.[dbid] = DB_ID()
 		AND query_plan.exist('//ColumnReference[@Schema = "[oqs]"]') = 0
 
@@ -339,7 +339,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 		SELECT
 			cte.plan_id,
 			qs.query_hash,
-			(cte.plan_md5 + qs.query_hash) AS 'Query_plan_MD5',
+			(cte.plan_MD5 + qs.query_hash) AS 'Query_plan_MD5',
 			SUBSTRING
 				(
 				st.text, (qs.statement_start_offset/2)+1,   
@@ -360,7 +360,7 @@ CREATE PROCEDURE [oqs].[Gather_Statistics]
 		INNER JOIN sys.dm_exec_query_stats qs
 		ON cte.plan_handle = qs.plan_handle
 		CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
-		WHERE (cte.plan_md5 + qs.query_hash) NOT IN (SELECT query_plan_MD5 FROM [oqs].[Queries])
+		WHERE (cte.plan_MD5 + qs.query_hash) NOT IN (SELECT query_plan_MD5 FROM [oqs].[Queries])
 
 		SET @log_newqueries = @@ROWCOUNT
 
