@@ -37,7 +37,7 @@ SET @db = DB_NAME();
 
 IF (   SELECT [is_broker_enabled]
          FROM [sys].[databases]
-        WHERE [database_id] = @db) = 0
+        WHERE [database_id] = DB_ID(@db)) = 0
 BEGIN
     EXEC ('ALTER DATABASE ' + @db + ' SET ENABLE_BROKER');
 END;
@@ -256,7 +256,9 @@ DECLARE @log_newqueries INT;
 DECLARE @log_runtime_stats INT;
 
 BEGIN
-
+    
+    SET NOCOUNT ON;
+    
     IF @logmode = 1
     BEGIN
         SET @log_logrunid = (SELECT ISNULL(MAX([Log_LogRunID]), 0) + 1 FROM [oqs].[Log]);
