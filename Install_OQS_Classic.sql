@@ -289,9 +289,8 @@ BEGIN
                                [plan_type],
                                [plan_objecttype],
                                [plan_executionplan])
-    SELECT CONVERT(
-               VARBINARY,
-               SUBSTRING([sys].[fn_sqlvarbasetostr](HASHBYTES('MD5', CONVERT(NVARCHAR(MAX), [n].[query]('.')))), 3, 32)),
+    SELECT 
+		   SUBSTRING(master.sys.fn_repl_hash_binary(CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
            [cp].[plan_handle],
            GETDATE(),
            DB_NAME([qp].[dbid]),
