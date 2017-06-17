@@ -245,6 +245,99 @@ CREATE TABLE [oqs].[Log] (
         PRIMARY KEY CLUSTERED ([Log_LogID])) ON [PRIMARY];
 GO
 
+
+-- Create the OQS query_stats view as a version specific abstraction of sys.dm_exec_query_stats
+IF EXISTS (   SELECT *
+                    FROM [sys].[views] AS [V]
+                   WHERE [V].[object_id] = OBJECT_ID(N'[oqs].[query_stats]'))
+BEGIN
+    DROP VIEW [oqs].[query_stats]
+END;
+
+DECLARE @MajorVersion   TINYINT,
+        @MinorVersion   TINYINT,
+        @Version        NVARCHAR(128),
+        @ViewDefinition NVARCHAR(MAX);
+
+SELECT @Version = CAST(SERVERPROPERTY('ProductVersion') AS NVARCHAR);
+
+SELECT @MajorVersion = PARSENAME(CONVERT(VARCHAR(32), @Version), 4),
+       @MinorVersion = PARSENAME(CONVERT(VARCHAR(32), @Version), 3);
+
+SET @ViewDefinition
+    = 'CREATE VIEW [oqs].[query_stats]
+AS
+SELECT [sql_handle],
+       [statement_start_offset],
+       [statement_end_offset],
+       [plan_generation_num],
+       [plan_handle],
+       [creation_time],
+       [last_execution_time],
+       [execution_count],
+       [total_worker_time],
+       [last_worker_time],
+       [min_worker_time],
+       [max_worker_time],
+       [total_physical_reads],
+       [last_physical_reads],
+       [min_physical_reads],
+       [max_physical_reads],
+       [total_logical_writes],
+       [last_logical_writes],
+       [min_logical_writes],
+       [max_logical_writes],
+       [total_logical_reads],
+       [last_logical_reads],
+       [min_logical_reads],
+       [max_logical_reads],
+       [total_clr_time],
+       [last_clr_time],
+       [min_clr_time],
+       [max_clr_time],
+       [total_elapsed_time],
+       [last_elapsed_time],
+       [min_elapsed_time],
+       [max_elapsed_time],'+
+	   CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_hash],' +											-- query_hash appears in sql 2008
+	   CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_plan_hash],' +									-- query_plan_hash appears in sql 2008
+	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_rows],' +	-- total_rows appears in sql 2008r2
+	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_rows],' +	-- last_rows appears in sql 2008r2
+	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_rows],' +	-- min_rows appears in sql 2008r2
+       CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_rows],' +	-- max_rows appears in sql 2008r2
+	   CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as varbinary (64)) ' ELSE '' END + '[statement_sql_handle],' +							-- statement_sql_handle appears in sql 2014
+	   CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as bigint) ' ELSE '' END + '[statement_context_id],' +									-- statement_context_id appears in sql 2014
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_dop],' +												-- total_dop appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_dop],' +													-- last_dop appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_dop],' +													-- min_dop appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_dop],' +													-- max_dop appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_grant_kb],' +											-- total_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_grant_kb],' +											-- last_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_grant_kb],' +												-- min_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_grant_kb],' +												-- max_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_used_grant_kb],' +										-- total_used_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_used_grant_kb],' +										-- last_used_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_used_grant_kb],' +										-- min_rows appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_used_grant_kb],' +										-- max_used_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_ideal_grant_kb],' +										-- total_ideal_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_ideal_grant_kb],' +										-- last_ideal_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_ideal_grant_kb],' +										-- min_ideal_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_ideal_grant_kb],' +										-- max_ideal_grant_kb appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_reserved_threads],' +									-- total_reserved_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_reserved_threads],' +									-- last_reserved_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_reserved_threads],' +										-- min_reserved_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_reserved_threads],' +										-- max_reserved_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_used_threads],' +										-- total_used_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_used_threads],' +										-- last_used_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_used_threads],' +											-- min_used_threads appears in sql 2012
+	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_used_threads]' +											-- max_used_threads appears in sql 2012
+	   ' FROM [sys].[dm_exec_query_stats];';
+
+EXEC (@ViewDefinition);
+GO
+
+
+
 -- Create the OQS Gather_Statistics Stored Procedure
 CREATE PROCEDURE [oqs].[Gather_Statistics]
     @debug INT = 0,
@@ -256,9 +349,9 @@ DECLARE @log_newqueries INT;
 DECLARE @log_runtime_stats INT;
 
 BEGIN
-    
+
     SET NOCOUNT ON;
-    
+
     IF @logmode = 1
     BEGIN
         SET @log_logrunid = (SELECT ISNULL(MAX([Log_LogRunID]), 0) + 1 FROM [oqs].[Log]);
@@ -291,8 +384,7 @@ BEGIN
                                [plan_type],
                                [plan_objecttype],
                                [plan_executionplan])
-    SELECT 
-		   SUBSTRING(master.sys.fn_repl_hash_binary(CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
+    SELECT SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
            [cp].[plan_handle],
            GETDATE(),
            DB_NAME([qp].[dbid]),
@@ -353,7 +445,7 @@ BEGIN
            [qs].[statement_end_offset],
            [qs].[creation_time]
       FROM [CTE_Queries] AS [cte]
-     INNER JOIN [sys].[dm_exec_query_stats] AS [qs]
+     INNER JOIN [oqs].[query_stats] AS [qs]
         ON [cte].[plan_handle] = [qs].[plan_handle]
      CROSS APPLY [sys].[dm_exec_sql_text]([qs].[sql_handle]) AS [st]
      WHERE ([cte].[plan_MD5] + [qs].[query_hash]) NOT IN (SELECT [query_plan_MD5] FROM [oqs].[Queries]);
@@ -446,7 +538,7 @@ BEGIN
            [qs].[max_logical_writes],
            0
       FROM [oqs].[Queries] AS [oqs_q]
-     INNER JOIN [sys].[dm_exec_query_stats] AS [qs]
+     INNER JOIN [oqs].[query_stats] AS [qs]
         ON (   [oqs_q].[query_hash]                   = [qs].[query_hash]
          AND   [oqs_q].[query_statement_start_offset] = [qs].[statement_start_offset]
          AND   [oqs_q].[query_statement_end_offset]   = [qs].[statement_end_offset]
