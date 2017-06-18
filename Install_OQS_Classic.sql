@@ -161,6 +161,14 @@ CREATE CLUSTERED INDEX [idx_Interval_id]
 ON [oqs].[Intervals] ([Interval_id] ASC);
 GO
 
+-- Create plan and DBID table
+CREATE TABLE oqs.PlanDBID
+	(
+	plan_handle VARBINARY(64),
+	[dbid] INT
+	)
+GO
+
 -- Create plans table
 CREATE TABLE [oqs].[Plans] (
     [plan_id] [INT] IDENTITY(1, 1) NOT NULL,
@@ -369,12 +377,31 @@ BEGIN
     INSERT INTO [oqs].[Intervals] ([Interval_start])
     VALUES (GETDATE())
 
+    -- To make sure we can grab plans for the current database ID in SQL Server 2008
+	-- we need an additional step to grab insert the plan_handles into the oqs.plandbid table
+	INSERT INTO oqs.plandbid
+		(
+		plan_handle,
+		[dbid]
+		)
+	SELECT plan_handle, CONVERT(int,pvt.dbid)
+	FROM (
+		SELECT plan_handle, epa.attribute, epa.value 
+		FROM sys.dm_exec_cached_plans 
+			OUTER APPLY sys.dm_exec_plan_attributes(plan_handle) AS epa
+		WHERE cacheobjtype = 'Compiled Plan' 
+		) AS ecpa 
+	PIVOT (MAX(ecpa.value) FOR ecpa.attribute IN ("dbid", "sql_handle")) AS pvt
+	WHERE plan_handle NOT IN (SELECT plan_handle FROM oqs.plandbid)
+	AND pvt.dbid = DB_ID()
+	ORDER BY pvt.sql_handle
+	
     -- Start execution plan insertion
     -- Get plans from the plan cache that do not exist in the OQS_Plans table
     -- for the database on the current context
-    ;
-    WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
-    INSERT INTO [oqs].[Plans] ([plan_MD5],
+    ;WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
+    INSERT INTO [oqs].[Plans] (
+							   [plan_MD5],
                                [plan_handle],
                                [plan_firstfound],
                                [plan_database],
@@ -383,27 +410,31 @@ BEGIN
                                [plan_sizeinbytes],
                                [plan_type],
                                [plan_objecttype],
-                               [plan_executionplan])
-    SELECT SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
+                               [plan_executionplan]
+                               )
+	SELECT 
+		   SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
            [cp].[plan_handle],
            GETDATE(),
-           DB_NAME([qp].[dbid]),
+           DB_NAME([pd].[dbid]),
            [cp].[refcounts],
            [cp].[usecounts],
            [cp].[size_in_bytes],
            [cp].[cacheobjtype],
            [cp].[objtype],
            [qp].[query_plan]
-      FROM [sys].[dm_exec_cached_plans] AS [cp]
+      FROM oqs.plandbid pd
+      INNER JOIN [sys].[dm_exec_cached_plans] AS [cp]
+      ON pd.plan_handle = cp.plan_handle
      CROSS APPLY [sys].[dm_exec_query_plan]([cp].[plan_handle]) AS [qp]
      CROSS APPLY [query_plan].[nodes]('/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp') AS [q]([n])
-     WHERE [cp].[cacheobjtype]                                               = 'Compiled Plan'
+     CROSS APPLY sys.dm_exec_sql_text(cp.plan_handle)
+     WHERE [cp].[cacheobjtype] = 'Compiled Plan'
        AND (   [qp].[query_plan] IS NOT NULL
-         AND   DB_NAME([qp].[dbid]) IS NOT NULL)
+       )
        AND CONVERT(
                VARBINARY,
-               SUBSTRING([sys].[fn_sqlvarbasetostr](HASHBYTES('MD5', CONVERT(NVARCHAR(MAX), [n].[query]('.')))), 3, 32)) NOT IN (SELECT [plan_MD5] FROM [oqs].[Plans])
-       AND [qp].[dbid]                                                       = DB_ID()
+               SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32)) NOT IN (SELECT [plan_MD5] FROM [oqs].[Plans])
        AND [qp].[query_plan].[exist]('//ColumnReference[@Schema = "[oqs]"]') = 0;
 
     SET @log_newplans = @@ROWCOUNT;
