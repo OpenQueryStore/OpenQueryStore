@@ -51,13 +51,6 @@ BEGIN
 END;
 
 -- Create the metadata storage table
-IF EXISTS (   SELECT *
-                FROM [sys].[tables] AS [T]
-               WHERE [T].[object_id] = OBJECT_ID(N'[oqs].[CollectionMetaData]'))
-BEGIN
-    DROP TABLE [oqs].[CollectionMetaData];
-END;
-
 CREATE TABLE [oqs].[CollectionMetaData] (
     [Command] NVARCHAR(2000), -- The command that should be executed by Service Broker
     [CollectionInterval] BIGINT NULL, -- The interval for looped processing (in seconds)
@@ -66,13 +59,14 @@ GO
 
 INSERT INTO [oqs].[CollectionMetaData] ([Command],
                                         [CollectionInterval])
-VALUES (N'EXEC [oqs].[Gather_Statistics] @logmode=1', 60);
+VALUES (N'EXEC [oqs].[GatherStatistics] @logmode=1', 60);
 
 -- Create the Service Broker structure
-CREATE QUEUE [OQSScheduler];
-CREATE SERVICE [OQSService] ON QUEUE [dbo].[OQSScheduler] ([DEFAULT]);
+CREATE QUEUE [oqs].[OQSScheduler];
+CREATE SERVICE [OQSService] ON QUEUE [oqs].[OQSScheduler] ([DEFAULT]);
 GO
 
+-- This is the stored procedure run by Service Broker to perform the looped execution of data collection
 CREATE PROCEDURE [oqs].[ActivateOQSScheduler]
 WITH EXECUTE AS OWNER
 AS
@@ -82,7 +76,7 @@ BEGIN
             @msg    NVARCHAR(MAX);
     WAITFOR (   RECEIVE TOP (1) @Handle = [conversation_handle],
                                 @Type = [message_type_name]
-                FROM [dbo].[OQSScheduler]),
+                FROM [oqs].[OQSScheduler]),
     TIMEOUT 5000; -- wait for 5 seconds
     IF @Handle IS NULL -- no message received
         RETURN;
@@ -105,7 +99,8 @@ BEGIN
 END;
 GO
 
-ALTER QUEUE [dbo].[OQSScheduler]
+-- Add the stored procedure to the queue so it gets activated
+ALTER QUEUE [oqs].[OQSScheduler]
 WITH STATUS = ON,
      RETENTION = OFF,
      ACTIVATION (STATUS = ON,
@@ -114,6 +109,8 @@ WITH STATUS = ON,
                  EXECUTE AS OWNER);
 GO
 
+-- This is a stored procedure to initiate the Service Broker loop, it can be called manually, or added as a 
+-- startup procedure to ensure data collection when SQL Server starts up
 CREATE PROCEDURE [oqs].[StartScheduler]
 AS
 BEGIN
@@ -136,6 +133,7 @@ BEGIN
 END;
 GO
 
+-- This is a stored procedure to (temporarilly) stop OQS data collection 
 CREATE PROCEDURE [oqs].[StopScheduler]
 AS
 BEGIN
@@ -152,21 +150,19 @@ GO
 
 -- Create the OQS tables inside the oqs schema
 CREATE TABLE [oqs].[Intervals] (
-    [Interval_id] [INT] IDENTITY(1, 1) NOT NULL,
-    [Interval_start] [DATETIME] NULL,
-    [Interval_end] [DATETIME] NULL) ON [PRIMARY];
+    [IntervalId] [INT] IDENTITY(1, 1) NOT NULL,
+    [IntervalStart] [DATETIME] NULL,
+    [IntervalEnd] [DATETIME] NULL) ON [PRIMARY];
 GO
 
-CREATE CLUSTERED INDEX [idx_Interval_id]
-ON [oqs].[Intervals] ([Interval_id] ASC);
+CREATE CLUSTERED INDEX [idx_IntervalId]
+ON [oqs].[Intervals] ([IntervalId] ASC);
 GO
 
 -- Create plan and DBID table
-CREATE TABLE oqs.PlanDBID
-	(
-	plan_handle VARBINARY(64),
-	[dbid] INT
-	)
+CREATE TABLE [oqs].[PlanDBID] (
+    [plan_handle] VARBINARY(64),
+    [dbid] INT);
 GO
 
 -- Create plans table
@@ -205,7 +201,7 @@ ON [oqs].[Queries] ([query_id] ASC);
 GO
 
 -- Create the Runtime Statistics table
-CREATE TABLE [oqs].[Query_Runtime_Stats] (
+CREATE TABLE [oqs].[QueryRuntimeStats] (
     [query_id] [INT] NULL,
     [interval_id] [INT] NULL,
     [creation_time] [DATETIME] NULL,
@@ -244,24 +240,17 @@ CREATE TABLE [oqs].[Query_Runtime_Stats] (
 GO
 
 -- Create logging table
-CREATE TABLE [oqs].[Log] (
-    [Log_LogID] [INT] IDENTITY(1, 1) NOT NULL,
-    [Log_LogRunID] [INT] NULL,
-    [Log_DateTime] [DATETIME] NULL,
-    [Log_Message] [VARCHAR](250) NULL,
+CREATE TABLE [oqs].[ActivityLog] (
+    [LogID] [INT] IDENTITY(1, 1) NOT NULL,
+    [LogRunID] [INT] NULL,
+    [DateTime] [DATETIME] NULL,
+    [Message] [VARCHAR](250) NULL,
     CONSTRAINT [PK_Log]
-        PRIMARY KEY CLUSTERED ([Log_LogID])) ON [PRIMARY];
+        PRIMARY KEY CLUSTERED ([LogID])) ON [PRIMARY];
 GO
 
 
 -- Create the OQS query_stats view as a version specific abstraction of sys.dm_exec_query_stats
-IF EXISTS (   SELECT *
-                    FROM [sys].[views] AS [V]
-                   WHERE [V].[object_id] = OBJECT_ID(N'[oqs].[query_stats]'))
-BEGIN
-    DROP VIEW [oqs].[query_stats]
-END;
-
 DECLARE @MajorVersion   TINYINT,
         @MinorVersion   TINYINT,
         @Version        NVARCHAR(128),
@@ -273,7 +262,7 @@ SELECT @MajorVersion = PARSENAME(CONVERT(VARCHAR(32), @Version), 4),
        @MinorVersion = PARSENAME(CONVERT(VARCHAR(32), @Version), 3);
 
 SET @ViewDefinition
-    = 'CREATE VIEW [oqs].[query_stats]
+    = 'CREATE VIEW [oqs].[QueryStats]
 AS
 SELECT [sql_handle],
        [statement_start_offset],
@@ -306,58 +295,128 @@ SELECT [sql_handle],
        [total_elapsed_time],
        [last_elapsed_time],
        [min_elapsed_time],
-       [max_elapsed_time],'+
-	   CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_hash],' +											-- query_hash appears in sql 2008
-	   CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_plan_hash],' +									-- query_plan_hash appears in sql 2008
-	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_rows],' +	-- total_rows appears in sql 2008r2
-	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_rows],' +	-- last_rows appears in sql 2008r2
-	   CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_rows],' +	-- min_rows appears in sql 2008r2
-       CASE WHEN @MajorVersion = 9 OR (@MajorVersion = 10 AND @MinorVersion < 50) THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_rows],' +	-- max_rows appears in sql 2008r2
-	   CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as varbinary (64)) ' ELSE '' END + '[statement_sql_handle],' +							-- statement_sql_handle appears in sql 2014
-	   CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as bigint) ' ELSE '' END + '[statement_context_id],' +									-- statement_context_id appears in sql 2014
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_dop],' +												-- total_dop appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_dop],' +													-- last_dop appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_dop],' +													-- min_dop appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_dop],' +													-- max_dop appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_grant_kb],' +											-- total_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_grant_kb],' +											-- last_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_grant_kb],' +												-- min_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_grant_kb],' +												-- max_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_used_grant_kb],' +										-- total_used_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_used_grant_kb],' +										-- last_used_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_used_grant_kb],' +										-- min_rows appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_used_grant_kb],' +										-- max_used_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_ideal_grant_kb],' +										-- total_ideal_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_ideal_grant_kb],' +										-- last_ideal_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_ideal_grant_kb],' +										-- min_ideal_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_ideal_grant_kb],' +										-- max_ideal_grant_kb appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_reserved_threads],' +									-- total_reserved_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_reserved_threads],' +									-- last_reserved_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_reserved_threads],' +										-- min_reserved_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_reserved_threads],' +										-- max_reserved_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_used_threads],' +										-- total_used_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_used_threads],' +										-- last_used_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_used_threads],' +											-- min_used_threads appears in sql 2012
-	   CASE WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_used_threads]' +											-- max_used_threads appears in sql 2012
-	   ' FROM [sys].[dm_exec_query_stats];';
+       [max_elapsed_time],' + CASE
+                                   WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) '
+                                   ELSE '' END + '[query_hash],' + -- query_hash appears in sql 2008
+CASE
+     WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) '
+     ELSE '' END + '[query_plan_hash],' + -- query_plan_hash appears in sql 2008
+CASE
+     WHEN @MajorVersion = 9
+       OR (   @MajorVersion = 10
+        AND   @MinorVersion < 50) THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_rows],' + -- total_rows appears in sql 2008r2
+CASE
+     WHEN @MajorVersion = 9
+       OR (   @MajorVersion = 10
+        AND   @MinorVersion < 50) THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_rows],' + -- last_rows appears in sql 2008r2
+CASE
+     WHEN @MajorVersion = 9
+       OR (   @MajorVersion = 10
+        AND   @MinorVersion < 50) THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_rows],' + -- min_rows appears in sql 2008r2
+CASE
+     WHEN @MajorVersion = 9
+       OR (   @MajorVersion = 10
+        AND   @MinorVersion < 50) THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_rows],' + -- max_rows appears in sql 2008r2
+CASE
+     WHEN @MajorVersion < 12 THEN 'CAST(NULL as varbinary (64)) '
+     ELSE '' END + '[statement_sql_handle],' + -- statement_sql_handle appears in sql 2014
+CASE
+     WHEN @MajorVersion < 12 THEN 'CAST(NULL as bigint) '
+     ELSE '' END + '[statement_context_id],' + -- statement_context_id appears in sql 2014
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_dop],' + -- total_dop appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_dop],' + -- last_dop appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_dop],' + -- min_dop appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_dop],' + -- max_dop appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_grant_kb],' + -- total_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_grant_kb],' + -- last_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_grant_kb],' + -- min_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_grant_kb],' + -- max_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_used_grant_kb],' + -- total_used_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_used_grant_kb],' + -- last_used_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_used_grant_kb],' + -- min_rows appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_used_grant_kb],' + -- max_used_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_ideal_grant_kb],' + -- total_ideal_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_ideal_grant_kb],' + -- last_ideal_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_ideal_grant_kb],' + -- min_ideal_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_ideal_grant_kb],' + -- max_ideal_grant_kb appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_reserved_threads],' + -- total_reserved_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_reserved_threads],' + -- last_reserved_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_reserved_threads],' + -- min_reserved_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_reserved_threads],' + -- max_reserved_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_used_threads],' + -- total_used_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_used_threads],' + -- last_used_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_used_threads],' + -- min_used_threads appears in sql 2012
+CASE
+     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_used_threads]' + -- max_used_threads appears in sql 2012
+' FROM [sys].[dm_exec_query_stats];';
 
 EXEC (@ViewDefinition);
 GO
 
 -- Create the OQS Purge OQS Stored Procedure
-CREATE PROCEDURE oqs.PurgeOQS
-	AS
-	
-	TRUNCATE TABLE [oqs].[Log]
-	TRUNCATE TABLE [oqs].[Intervals]
-	TRUNCATE TABLE [oqs].[PlanDBID]
-	TRUNCATE TABLE [oqs].[Plans]
-	TRUNCATE TABLE [oqs].[Queries]
-	TRUNCATE TABLE [oqs].[Query_Runtime_Stats]
+CREATE PROCEDURE [oqs].[PurgeOQS]
+AS
+TRUNCATE TABLE [oqs].[ActivityLog];
+TRUNCATE TABLE [oqs].[Intervals];
+TRUNCATE TABLE [oqs].[PlanDBID];
+TRUNCATE TABLE [oqs].[Plans];
+TRUNCATE TABLE [oqs].[Queries];
+TRUNCATE TABLE [oqs].[QueryRuntimeStats];
 GO
 
 -- Create the OQS Gather_Statistics Stored Procedure
-CREATE PROCEDURE [oqs].[Gather_Statistics]
+CREATE PROCEDURE [oqs].[GatherStatistics]
     @debug INT = 0,
     @logmode INT = 0
 AS
@@ -372,46 +431,45 @@ BEGIN
 
     IF @logmode = 1
     BEGIN
-        SET @log_logrunid = (SELECT ISNULL(MAX([Log_LogRunID]), 0) + 1 FROM [oqs].[Log]);
+        SET @log_logrunid = (SELECT ISNULL(MAX([LogRunID]), 0) + 1 FROM [oqs].[ActivityLog]);
     END;
 
     IF @logmode = 1
     BEGIN
-        INSERT INTO [oqs].[Log] ([Log_LogRunID],
-                                 [Log_DateTime],
-                                 [Log_Message])
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
         VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore capture script started...');
     END;
 
     -- Create a new interval
-    INSERT INTO [oqs].[Intervals] ([Interval_start])
-    VALUES (GETDATE())
+    INSERT INTO [oqs].[Intervals] ([IntervalStart])
+    VALUES (GETDATE());
 
     -- To make sure we can grab plans for the current database ID in SQL Server 2008
-	-- we need an additional step to grab insert the plan_handles into the oqs.plandbid table
-	INSERT INTO oqs.plandbid
-		(
-		plan_handle,
-		[dbid]
-		)
-	SELECT plan_handle, CONVERT(int,pvt.dbid)
-	FROM (
-		SELECT plan_handle, epa.attribute, epa.value 
-		FROM sys.dm_exec_cached_plans 
-			OUTER APPLY sys.dm_exec_plan_attributes(plan_handle) AS epa
-		WHERE cacheobjtype = 'Compiled Plan' 
-		) AS ecpa 
-	PIVOT (MAX(ecpa.value) FOR ecpa.attribute IN ("dbid", "sql_handle")) AS pvt
-	WHERE plan_handle NOT IN (SELECT plan_handle FROM oqs.plandbid)
-	AND pvt.dbid = DB_ID()
-	ORDER BY pvt.sql_handle
-	
+    -- we need an additional step to grab insert the plan_handles into the oqs.plandbid table
+    INSERT INTO [oqs].[PlanDBID] ([plan_handle],
+                                  [dbid])
+    SELECT [plan_handle],
+           CONVERT(INT, [pvt].[dbid])
+      FROM (   SELECT [plan_handle],
+                      [epa].[attribute],
+                      [epa].[value]
+                 FROM [sys].[dm_exec_cached_plans]
+                OUTER APPLY [sys].[dm_exec_plan_attributes]([plan_handle]) AS [epa]
+                WHERE [cacheobjtype] = 'Compiled Plan') AS [ecpa]
+      PIVOT (   MAX([value])
+                FOR [attribute] IN ("dbid", "sql_handle")) AS [pvt]
+     WHERE [plan_handle] NOT IN (SELECT [plan_handle] FROM [oqs].[PlanDBID])
+       AND [pvt].[dbid] = DB_ID()
+     ORDER BY [pvt].[sql_handle]
+
     -- Start execution plan insertion
     -- Get plans from the plan cache that do not exist in the OQS_Plans table
     -- for the database on the current context
-    ;WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
-    INSERT INTO [oqs].[Plans] (
-							   [plan_MD5],
+    ;
+    WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
+    INSERT INTO [oqs].[Plans] ([plan_MD5],
                                [plan_handle],
                                [plan_firstfound],
                                [plan_database],
@@ -420,10 +478,8 @@ BEGIN
                                [plan_sizeinbytes],
                                [plan_type],
                                [plan_objecttype],
-                               [plan_executionplan]
-                               )
-	SELECT 
-		   SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
+                               [plan_executionplan])
+    SELECT SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32),
            [cp].[plan_handle],
            GETDATE(),
            DB_NAME([pd].[dbid]),
@@ -433,15 +489,14 @@ BEGIN
            [cp].[cacheobjtype],
            [cp].[objtype],
            [qp].[query_plan]
-      FROM oqs.plandbid pd
-      INNER JOIN [sys].[dm_exec_cached_plans] AS [cp]
-      ON pd.plan_handle = cp.plan_handle
+      FROM [oqs].[PlanDBID] AS [pd]
+     INNER JOIN [sys].[dm_exec_cached_plans] AS [cp]
+        ON [pd].[plan_handle] = [cp].[plan_handle]
      CROSS APPLY [sys].[dm_exec_query_plan]([cp].[plan_handle]) AS [qp]
      CROSS APPLY [query_plan].[nodes]('/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp') AS [q]([n])
-     CROSS APPLY sys.dm_exec_sql_text(cp.plan_handle)
-     WHERE [cp].[cacheobjtype] = 'Compiled Plan'
-       AND (   [qp].[query_plan] IS NOT NULL
-       )
+     CROSS APPLY [sys].[dm_exec_sql_text]([cp].[plan_handle])
+     WHERE [cp].[cacheobjtype]                                               = 'Compiled Plan'
+       AND ([qp].[query_plan] IS NOT NULL)
        AND CONVERT(
                VARBINARY,
                SUBSTRING([master].[sys].[fn_repl_hash_binary](CONVERT(VARBINARY(MAX), [n].[query]('.'))), 1, 32)) NOT IN (SELECT [plan_MD5] FROM [oqs].[Plans])
@@ -451,9 +506,9 @@ BEGIN
 
     IF @logmode = 1
     BEGIN
-        INSERT INTO [oqs].[Log] ([Log_LogRunID],
-                                 [Log_DateTime],
-                                 [Log_Message])
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
         VALUES (@log_logrunid,
                 GETDATE(),
                 'OpenQueryStore captured ' + CONVERT(VARCHAR, @log_newplans) + ' new plan(s)...');
@@ -486,7 +541,7 @@ BEGIN
            [qs].[statement_end_offset],
            [qs].[creation_time]
       FROM [CTE_Queries] AS [cte]
-     INNER JOIN [oqs].[query_stats] AS [qs]
+     INNER JOIN [oqs].[QueryStats] AS [qs]
         ON [cte].[plan_handle] = [qs].[plan_handle]
      CROSS APPLY [sys].[dm_exec_sql_text]([qs].[sql_handle]) AS [st]
      WHERE ([cte].[plan_MD5] + [qs].[query_hash]) NOT IN (SELECT [query_plan_MD5] FROM [oqs].[Queries]);
@@ -495,9 +550,9 @@ BEGIN
 
     IF @logmode = 1
     BEGIN
-        INSERT INTO [oqs].[Log] ([Log_LogRunID],
-                                 [Log_DateTime],
-                                 [Log_Message])
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
         VALUES (@log_logrunid,
                 GETDATE(),
                 'OpenQueryStore captured ' + CONVERT(VARCHAR, @log_newqueries) + ' new queries...');
@@ -508,41 +563,41 @@ BEGIN
     SET @Interval_ID = IDENT_CURRENT('[oqs].[Intervals]');
 
     -- Insert runtime statistics for every query statement that is recorded inside the OQS
-    INSERT INTO [oqs].[Query_Runtime_Stats] ([query_id],
-                                             [interval_id],
-                                             [creation_time],
-                                             [last_execution_time],
-                                             [execution_count],
-                                             [total_elapsed_time],
-                                             [last_elapsed_time],
-                                             [min_elapsed_time],
-                                             [max_elapsed_time],
-                                             [avg_elapsed_time],
-                                             [total_rows],
-                                             [last_rows],
-                                             [min_rows],
-                                             [max_rows],
-                                             [avg_rows],
-                                             [total_worker_time],
-                                             [last_worker_time],
-                                             [min_worker_time],
-                                             [max_worker_time],
-                                             [avg_worker_time],
-                                             [total_physical_reads],
-                                             [last_physical_reads],
-                                             [min_physical_reads],
-                                             [max_physical_reads],
-                                             [avg_physical_reads],
-                                             [total_logical_reads],
-                                             [last_logical_reads],
-                                             [min_logical_reads],
-                                             [max_logical_reads],
-                                             [avg_logical_reads],
-                                             [total_logical_writes],
-                                             [last_logical_writes],
-                                             [min_logical_writes],
-                                             [max_logical_writes],
-                                             [avg_logical_writes])
+    INSERT INTO [oqs].[QueryRuntimeStats] ([query_id],
+                                           [interval_id],
+                                           [creation_time],
+                                           [last_execution_time],
+                                           [execution_count],
+                                           [total_elapsed_time],
+                                           [last_elapsed_time],
+                                           [min_elapsed_time],
+                                           [max_elapsed_time],
+                                           [avg_elapsed_time],
+                                           [total_rows],
+                                           [last_rows],
+                                           [min_rows],
+                                           [max_rows],
+                                           [avg_rows],
+                                           [total_worker_time],
+                                           [last_worker_time],
+                                           [min_worker_time],
+                                           [max_worker_time],
+                                           [avg_worker_time],
+                                           [total_physical_reads],
+                                           [last_physical_reads],
+                                           [min_physical_reads],
+                                           [max_physical_reads],
+                                           [avg_physical_reads],
+                                           [total_logical_reads],
+                                           [last_logical_reads],
+                                           [min_logical_reads],
+                                           [max_logical_reads],
+                                           [avg_logical_reads],
+                                           [total_logical_writes],
+                                           [last_logical_writes],
+                                           [min_logical_writes],
+                                           [max_logical_writes],
+                                           [avg_logical_writes])
     SELECT [oqs_q].[query_id],
            @Interval_ID,
            [qs].[creation_time],
@@ -579,7 +634,7 @@ BEGIN
            [qs].[max_logical_writes],
            0
       FROM [oqs].[Queries] AS [oqs_q]
-     INNER JOIN [oqs].[query_stats] AS [qs]
+     INNER JOIN [oqs].[QueryStats] AS [qs]
         ON (   [oqs_q].[query_hash]                   = [qs].[query_hash]
          AND   [oqs_q].[query_statement_start_offset] = [qs].[statement_start_offset]
          AND   [oqs_q].[query_statement_end_offset]   = [qs].[statement_end_offset]
@@ -590,13 +645,13 @@ BEGIN
     BEGIN
         SELECT 'Snapshot of captured runtime statistics';
         SELECT *
-          FROM [oqs].[Query_Runtime_Stats];
+          FROM [oqs].[QueryRuntimeStats];
     END;
 
     -- Close the interval now that the statistics are in
     UPDATE [oqs].[Intervals]
-       SET [Interval_end] = GETDATE()
-     WHERE [Interval_id] = (SELECT MAX([Interval_id]) - 1 FROM [oqs].[Intervals]);
+       SET [IntervalEnd] = GETDATE()
+     WHERE [IntervalId] = (SELECT MAX([IntervalId]) - 1 FROM [oqs].[Intervals]);
 
     -- Now that we have the runtime statistics inside the OQS we need to perform some calculations
     -- so we can see query performance per interval captured
@@ -621,8 +676,8 @@ BEGIN
                  [total_physical_reads],
                  [total_logical_reads],
                  [total_logical_writes]
-            FROM [oqs].[Query_Runtime_Stats]
-           WHERE [interval_id] = (SELECT MAX([Interval_id]) - 1 FROM [oqs].[Intervals]))
+            FROM [oqs].[QueryRuntimeStats]
+           WHERE [interval_id] = (SELECT MAX([IntervalId]) - 1 FROM [oqs].[Intervals]))
     SELECT [cte].[query_id],
            [cte].[interval_id],
            ([qrs].[execution_count] - [cte].[execution_count]) AS [Delta Exec Count],
@@ -658,17 +713,17 @@ BEGIN
                0) AS [Avg. Log writes]
     INTO   [#OQS_Runtime_Stats]
       FROM [CTE_Update_Runtime_Stats] AS [cte]
-     INNER JOIN [oqs].[Query_Runtime_Stats] AS [qrs]
+     INNER JOIN [oqs].[QueryRuntimeStats] AS [qrs]
         ON [cte].[query_id] = [qrs].[query_id]
-     WHERE [qrs].[interval_id] = (SELECT MAX([Interval_id]) FROM [oqs].[Intervals]);
+     WHERE [qrs].[interval_id] = (SELECT MAX([IntervalId]) FROM [oqs].[Intervals]);
 
     SET @log_runtime_stats = @@ROWCOUNT;
 
     IF @logmode = 1
     BEGIN
-        INSERT INTO [oqs].[Log] ([Log_LogRunID],
-                                 [Log_DateTime],
-                                 [Log_Message])
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
         VALUES (@log_logrunid,
                 GETDATE(),
                 'OpenQueryStore captured ' + CONVERT(VARCHAR, @log_runtime_stats) + ' runtime statistics...');
@@ -697,7 +752,7 @@ BEGIN
            [qrs].[avg_logical_reads] = [tqrs].[Avg. Log reads],
            [qrs].[total_logical_writes] = [tqrs].[Delta Total Log Writes],
            [qrs].[avg_logical_writes] = [tqrs].[Avg. Log writes]
-      FROM [oqs].[Query_Runtime_Stats] AS [qrs]
+      FROM [oqs].[QueryRuntimeStats] AS [qrs]
      INNER JOIN [#OQS_Runtime_Stats] AS [tqrs]
         ON (   [qrs].[interval_id] = [tqrs].[interval_id]
          AND   [qrs].[query_id]    = [tqrs].[query_id]);
@@ -706,15 +761,15 @@ BEGIN
     BEGIN
         SELECT 'Snapshot of runtime statistics after delta update';
         SELECT *
-          FROM [oqs].[Query_Runtime_Stats];
+          FROM [oqs].[QueryRuntimeStats];
     END;
 
     -- And we are done!
     IF @logmode = 1
     BEGIN
-        INSERT INTO [oqs].[Log] ([Log_LogRunID],
-                                 [Log_DateTime],
-                                 [Log_Message])
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
         VALUES (@log_logrunid, GETDATE(), 'OpenQueryStore capture script finished...');
     END;
 
@@ -722,5 +777,6 @@ END;
 
 GO
 
-
--- Finished installation!
+-- Finished base installation!
+-- Now we need to install the certificate to enable background data collection
+-- Check out the file ServiceBrokerCertificate.sql on the GitHub page for details
