@@ -344,7 +344,17 @@ SELECT [sql_handle],
 EXEC (@ViewDefinition);
 GO
 
-
+-- Create the OQS Purge OQS Stored Procedure
+CREATE PROCEDURE oqs.PurgeOQS
+	AS
+	
+	TRUNCATE TABLE [oqs].[Log]
+	TRUNCATE TABLE [oqs].[Intervals]
+	TRUNCATE TABLE [oqs].[PlanDBID]
+	TRUNCATE TABLE [oqs].[Plans]
+	TRUNCATE TABLE [oqs].[Queries]
+	TRUNCATE TABLE [oqs].[Query_Runtime_Stats]
+GO
 
 -- Create the OQS Gather_Statistics Stored Procedure
 CREATE PROCEDURE [oqs].[Gather_Statistics]
