@@ -28,7 +28,7 @@ Finally, a set of integrated reports inside SQL Server Management Studio will al
 
 For some more details, check out the [Wiki](https://github.com/OpenQueryStore/OpenQueryStore/wiki)
 
-**Currently supported 2008R2 - 2014**
+**Currently supported 2008 - 2014**
 
 ## License
 [MIT](/LICENSE)
