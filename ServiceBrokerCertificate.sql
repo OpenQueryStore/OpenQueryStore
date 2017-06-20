@@ -42,7 +42,7 @@ GO
 -- We now move to the master database to import the certificate and associate it with
 -- an otherwise unused login: OpenQueryStore
 
-USE MASTER
+USE master
 GO
 
 -- Enter the file location previously used to create the certificate
