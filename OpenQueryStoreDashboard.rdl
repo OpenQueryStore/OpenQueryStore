@@ -20,13 +20,13 @@
         <CommandText>SELECT TOP 10
   AVG(qrs.avg_elapsed_time) AS 'avg_elapsed_time',
   qrs.query_id
-FROM oqs.query_runtime_stats qrs
+FROM oqs.QueryRuntimeStats qrs
 INNER JOIN oqs.queries q
 ON qrs.query_id = q.query_id
 INNER JOIN oqs.intervals i
-ON qrs.interval_id = i.interval_id
-WHERE i.interval_end &gt;= DATEADD(hour, -1, GETDATE())
-AND i.interval_id &lt; (SELECT MAX(interval_id) FROM oqs.intervals)
+ON qrs.interval_id = i.intervalid
+WHERE i.intervalend &gt;= DATEADD(hour, -1, GETDATE())
+AND i.intervalid &lt; (SELECT MAX(intervalid) FROM oqs.intervals)
 AND execution_count &gt; 0
 GROUP BY qrs.query_id
 ORDER BY avg_elapsed_time DESC</CommandText>
@@ -49,14 +49,14 @@ ORDER BY avg_elapsed_time DESC</CommandText>
         <CommandText>SELECT TOP 10    
   SUM(qrs.execution_count) AS Count_Exec, 
   qrs.query_id
-FROM oqs.Query_Runtime_Stats AS qrs 
+FROM oqs.QueryRuntimeStats AS qrs 
 INNER JOIN oqs.Queries AS q 
 ON qrs.query_id = q.query_id 
 INNER JOIN oqs.Intervals AS i 
-ON qrs.interval_id = i.Interval_id
-WHERE (i.Interval_end &gt;= DATEADD(hour, - 1, GETDATE())) 
+ON qrs.interval_id = i.IntervalId
+WHERE (i.IntervalEnd &gt;= DATEADD(hour, - 1, GETDATE())) 
 AND (qrs.execution_count &gt; 0)
-AND i.interval_id &lt; (SELECT MAX(interval_id) FROM oqs.intervals)
+AND i.IntervalId &lt; (SELECT MAX(IntervalId) FROM oqs.intervals)
 GROUP BY qrs.query_id
 ORDER BY Count_Exec DESC</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
@@ -76,7 +76,7 @@ ORDER BY Count_Exec DESC</CommandText>
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
         <CommandText>SELECT        CONVERT(varchar,qrs.last_execution_time,108) AS TimeDate, COUNT(DISTINCT query_id) AS 'Distinct queries'
-FROM            oqs.Query_Runtime_Stats AS qrs
+FROM            oqs.QueryRuntimeStats AS qrs
 WHERE        (last_execution_time &gt;= DATEADD(hour, - 1, GETDATE()))
 GROUP BY last_execution_time
 ORDER BY TimeDate</CommandText>
@@ -102,7 +102,7 @@ ORDER BY TimeDate</CommandText>
 FROM oqs.plans p
 INNER JOIN oqs.queries q
 ON p.plan_id = q.plan_id
-INNER JOIN oqs.query_runtime_stats qrs
+INNER JOIN oqs.QueryRuntimeStats qrs
 ON q.query_id = qrs.query_id
 WHERE qrs.last_execution_time &gt;= DATEADD(hour, -1, GETDATE())
 GROUP BY plan_objecttype</CommandText>
@@ -121,13 +121,13 @@ GROUP BY plan_objecttype</CommandText>
     <DataSet Name="QS_Worker_time_last_8_hours">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT        CONVERT(varchar, i.Interval_end, 108) AS TimeDate, SUM(qrs.min_worker_time) AS 'min worker time', SUM(qrs.avg_worker_time) AS 'avg worker time', SUM(qrs.max_worker_time) AS 'max worker time'
-FROM            oqs.Query_Runtime_Stats AS qrs INNER JOIN
-                         oqs.Intervals AS i ON qrs.interval_id = i.Interval_id
-WHERE        (i.Interval_end &gt;= DATEADD(hour, - 8, GETDATE()))
+        <CommandText>SELECT        CONVERT(varchar, i.IntervalEnd, 108) AS TimeDate, SUM(qrs.min_worker_time) AS 'min worker time', SUM(qrs.avg_worker_time) AS 'avg worker time', SUM(qrs.max_worker_time) AS 'max worker time'
+FROM            oqs.QueryRuntimeStats AS qrs INNER JOIN
+                         oqs.Intervals AS i ON qrs.interval_id = i.IntervalId
+WHERE        (i.IntervalEnd &gt;= DATEADD(hour, - 8, GETDATE()))
 AND (qrs.execution_count &gt; 0)
-AND i.interval_id &lt; (SELECT MAX(interval_id) FROM oqs.intervals)
-GROUP BY CONVERT(varchar, i.Interval_end, 108)
+AND i.intervalId &lt; (SELECT MAX(IntervalId) FROM oqs.intervals)
+GROUP BY CONVERT(varchar, i.IntervalEnd, 108)
 ORDER BY TimeDate</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
@@ -153,14 +153,14 @@ ORDER BY TimeDate</CommandText>
     <DataSet Name="QS_Logical_IO_last_8_hours">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT        CONVERT(varchar, i.Interval_end, 108) AS TimeDate, SUM(qrs.min_logical_reads) AS 'min logical reads', SUM(qrs.avg_logical_reads) AS 'avg logical reads', SUM(qrs.max_logical_reads) AS 'max logical reads', 
+        <CommandText>SELECT        CONVERT(varchar, i.IntervalEnd, 108) AS TimeDate, SUM(qrs.min_logical_reads) AS 'min logical reads', SUM(qrs.avg_logical_reads) AS 'avg logical reads', SUM(qrs.max_logical_reads) AS 'max logical reads', 
                          SUM(qrs.min_logical_writes) AS 'min logical writes', SUM(qrs.avg_logical_writes) AS 'avg logical writes', SUM(qrs.max_logical_writes) AS 'max logical writes'
-FROM            oqs.Query_Runtime_Stats AS qrs INNER JOIN
-                         oqs.Intervals AS i ON qrs.interval_id = i.Interval_id
-WHERE        (i.Interval_end &gt;= DATEADD(hour, - 1, GETDATE())) 
+FROM            oqs.QueryRuntimeStats AS qrs INNER JOIN
+                         oqs.Intervals AS i ON qrs.interval_id = i.IntervalId
+WHERE        (i.IntervalEnd &gt;= DATEADD(hour, - 1, GETDATE())) 
 AND (qrs.execution_count &gt; 0)
-AND i.interval_id &lt;= (SELECT MAX(interval_id)-1 FROM oqs.intervals)
-GROUP BY CONVERT(varchar, i.Interval_end, 108)
+AND i.intervalId &lt;= (SELECT MAX(IntervalId)-1 FROM oqs.intervals)
+GROUP BY CONVERT(varchar, i.IntervalEnd, 108)
 ORDER BY TimeDate</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
@@ -222,18 +222,14 @@ ORDER BY TimeDate</CommandText>
     <DataSet Name="QS_Elapsed_time_last_8_hours">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT        
-  CONVERT(varchar, i.Interval_end, 108) AS TimeDate, 
-  SUM(qrs.min_elapsed_time) AS 'min elapsed time', 
-  SUM(qrs.avg_elapsed_time) AS 'avg elapsed time', 
-  SUM(qrs.max_elapsed_time) AS 'max elapsed time'
-FROM oqs.Query_Runtime_Stats AS qrs 
-INNER JOIN oqs.Intervals AS i 
-ON qrs.interval_id = i.Interval_id
-WHERE (i.Interval_end &gt;= DATEADD(hour, - 8, GETDATE()))
-AND (qrs.execution_count &gt; 0)
-AND i.interval_id &lt; (SELECT MAX(interval_id) FROM oqs.intervals)
-GROUP BY CONVERT(varchar, i.Interval_end, 108)
+        <CommandText>SELECT        CONVERT(varchar, i.IntervalEnd, 108) AS TimeDate, SUM(qrs.min_elapsed_time) AS 'min elapsed time', SUM(qrs.avg_elapsed_time) AS 'avg elapsed time', SUM(qrs.max_elapsed_time) 
+                         AS 'max elapsed time'
+FROM            oqs.QueryRuntimeStats AS qrs INNER JOIN
+                         oqs.Intervals AS i ON qrs.interval_id = i.IntervalId
+WHERE        (qrs.execution_count &gt; 0) AND (i.IntervalEnd &gt;= DATEADD(hour, - 8, GETDATE())) AND (i.IntervalId &lt;
+                             (SELECT        MAX(IntervalId) AS Expr1
+                               FROM            oqs.Intervals))
+GROUP BY CONVERT(varchar, i.IntervalEnd, 108)
 ORDER BY TimeDate</CommandText>
       </Query>
       <Fields>
@@ -279,13 +275,14 @@ WHERE OBJECT_SCHEMA_NAME(object_id) = 'oqs'</CommandText>
     <DataSet Name="QS_Item_Count">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT
-	DB_NAME() As 'Database',
-	COUNT(DISTINCT query_id) AS 'Queries',
-	(SELECT COUNT(DISTINCT plan_id) FROM oqs.Plans) AS 'Plans',
-	(SELECT COUNT(interval_id) FROM oqs.Intervals) AS 'Intervals',
-	(SELECT COUNT(query_id) FROM oqs.Query_Runtime_Stats) AS 'RuntimeStats' 
-FROM oqs.Queries</CommandText>
+        <CommandText>SELECT        DB_NAME() AS 'Database', COUNT(DISTINCT query_id) AS 'Queries',
+                             (SELECT        COUNT(DISTINCT plan_id) AS Expr1
+                               FROM            oqs.Plans) AS 'Plans',
+                             (SELECT        COUNT(IntervalId) AS Expr1
+                               FROM            oqs.Intervals) AS 'Intervals',
+                             (SELECT        COUNT(query_id) AS Expr1
+                               FROM            oqs.QueryRuntimeStats) AS 'RuntimeStats'
+FROM            oqs.Queries</CommandText>
       </Query>
       <Fields>
         <Field Name="Database">
@@ -313,24 +310,27 @@ FROM oqs.Queries</CommandText>
     <DataSet Name="QS_Last_Log">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>select * from oqs.log
-where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
+        <CommandText>SELECT        LogID, LogRunID, DateTime, Message
+FROM            oqs.ActivityLog
+WHERE        (LogRunID =
+                             (SELECT        MAX(LogRunID) AS Expr1
+                               FROM            oqs.ActivityLog AS log_1))</CommandText>
       </Query>
       <Fields>
-        <Field Name="Log_LogID">
-          <DataField>Log_LogID</DataField>
+        <Field Name="LogID">
+          <DataField>LogID</DataField>
           <rd:TypeName>System.Int32</rd:TypeName>
         </Field>
-        <Field Name="Log_LogRunID">
-          <DataField>Log_LogRunID</DataField>
+        <Field Name="LogRunID">
+          <DataField>LogRunID</DataField>
           <rd:TypeName>System.Int32</rd:TypeName>
         </Field>
-        <Field Name="Log_DateTime">
-          <DataField>Log_DateTime</DataField>
+        <Field Name="DateTime">
+          <DataField>DateTime</DataField>
           <rd:TypeName>System.DateTime</rd:TypeName>
         </Field>
-        <Field Name="Log_Message">
-          <DataField>Log_Message</DataField>
+        <Field Name="Message">
+          <DataField>Message</DataField>
           <rd:TypeName>System.String</rd:TypeName>
         </Field>
       </Fields>
@@ -4578,21 +4578,21 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
                   <TablixCells>
                     <TablixCell>
                       <CellContents>
-                        <Textbox Name="Log_LogID">
+                        <Textbox Name="LogID">
                           <CanGrow>true</CanGrow>
                           <KeepTogether>true</KeepTogether>
                           <Paragraphs>
                             <Paragraph>
                               <TextRuns>
                                 <TextRun>
-                                  <Value>=Fields!Log_LogID.Value</Value>
+                                  <Value>=Fields!LogID.Value</Value>
                                   <Style />
                                 </TextRun>
                               </TextRuns>
                               <Style />
                             </Paragraph>
                           </Paragraphs>
-                          <rd:DefaultName>Log_LogID</rd:DefaultName>
+                          <rd:DefaultName>LogID</rd:DefaultName>
                           <Style>
                             <Border>
                               <Color>LightGrey</Color>
@@ -4608,21 +4608,21 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
                     </TablixCell>
                     <TablixCell>
                       <CellContents>
-                        <Textbox Name="Log_LogRunID">
+                        <Textbox Name="LogRunID">
                           <CanGrow>true</CanGrow>
                           <KeepTogether>true</KeepTogether>
                           <Paragraphs>
                             <Paragraph>
                               <TextRuns>
                                 <TextRun>
-                                  <Value>=Fields!Log_LogRunID.Value</Value>
+                                  <Value>=Fields!LogRunID.Value</Value>
                                   <Style />
                                 </TextRun>
                               </TextRuns>
                               <Style />
                             </Paragraph>
                           </Paragraphs>
-                          <rd:DefaultName>Log_LogRunID</rd:DefaultName>
+                          <rd:DefaultName>LogRunID</rd:DefaultName>
                           <Style>
                             <Border>
                               <Color>LightGrey</Color>
@@ -4638,21 +4638,21 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
                     </TablixCell>
                     <TablixCell>
                       <CellContents>
-                        <Textbox Name="Log_DateTime">
+                        <Textbox Name="DateTime">
                           <CanGrow>true</CanGrow>
                           <KeepTogether>true</KeepTogether>
                           <Paragraphs>
                             <Paragraph>
                               <TextRuns>
                                 <TextRun>
-                                  <Value>=Fields!Log_DateTime.Value</Value>
+                                  <Value>=Fields!DateTime.Value</Value>
                                   <Style />
                                 </TextRun>
                               </TextRuns>
                               <Style />
                             </Paragraph>
                           </Paragraphs>
-                          <rd:DefaultName>Log_DateTime</rd:DefaultName>
+                          <rd:DefaultName>DateTime</rd:DefaultName>
                           <Style>
                             <Border>
                               <Color>LightGrey</Color>
@@ -4668,21 +4668,21 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
                     </TablixCell>
                     <TablixCell>
                       <CellContents>
-                        <Textbox Name="Log_Message">
+                        <Textbox Name="Message">
                           <CanGrow>true</CanGrow>
                           <KeepTogether>true</KeepTogether>
                           <Paragraphs>
                             <Paragraph>
                               <TextRuns>
                                 <TextRun>
-                                  <Value>=Fields!Log_Message.Value</Value>
+                                  <Value>=Fields!Message.Value</Value>
                                   <Style />
                                 </TextRun>
                               </TextRuns>
                               <Style />
                             </Paragraph>
                           </Paragraphs>
-                          <rd:DefaultName>Log_Message</rd:DefaultName>
+                          <rd:DefaultName>Message</rd:DefaultName>
                           <Style>
                             <Border>
                               <Color>LightGrey</Color>
@@ -4694,6 +4694,7 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
                             <PaddingBottom>2pt</PaddingBottom>
                           </Style>
                         </Textbox>
+                        <rd:Selected>true</rd:Selected>
                       </CellContents>
                     </TablixCell>
                   </TablixCells>
@@ -4721,8 +4722,8 @@ where Log_LogRunID = (SELECT MAX(Log_LogrunID) FROM oqs.log)</CommandText>
             <DataSetName>QS_Last_Log</DataSetName>
             <Top>26.71051cm</Top>
             <Left>18.44176cm</Left>
-            <Height>1.06771cm</Height>
-            <Width>17.76931cm</Width>
+            <Height>1.0677cm</Height>
+            <Width>17.76932cm</Width>
             <ZIndex>18</ZIndex>
             <Style>
               <Border>
