@@ -16,6 +16,8 @@
 
 ## This is a project in early alpha. Please be aware that the code is NOT production ready.
 
+**Currently supported: SQL 2008 - 2014**
+
 OpenQueryStore (OQS) is a collection of scripts that add Query Store like functionality to pre-SQL Server 2016 Instances!
 
 OQS is being built from the ground up to allow **all versions and editions** of SQL Server from **2005** up to and including **2014** to have a Query Store like functionality. The data collection, retention and cleanup will be easily configurable to allow for complete control of the OQS data storage.
@@ -28,7 +30,6 @@ Finally, a set of integrated reports inside SQL Server Management Studio will al
 
 For some more details, check out the [Wiki](https://github.com/OpenQueryStore/OpenQueryStore/wiki)
 
-**Currently supported 2008 - 2014**
 
 ## License
 [MIT](/LICENSE)
