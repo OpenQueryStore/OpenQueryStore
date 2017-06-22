@@ -126,7 +126,9 @@ BEGIN
     DROP CERTIFICATE [OpenQueryStore];
 END;
 
-IF EXISTS (SELECT * FROM [sys].[schemas] AS [S] WHERE [S].[name] = 'oqs')
+IF EXISTS (   SELECT * 
+                FROM [sys].[schemas] AS [S] 
+               WHERE [S].[name] = 'oqs')
 BEGIN
-    EXEC ('CREATE SCHEMA oqs');
+    EXEC ('DROP SCHEMA oqs');
 END;
