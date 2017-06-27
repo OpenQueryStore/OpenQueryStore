@@ -52,7 +52,9 @@ Will install the Classic version on instance SQL2012 database named ScooterStore
 #>
 [CmdletBinding()]
 param (
+    [parameter(Mandatory = $true)]
 	[string]$SqlInstance,
+    [parameter(Mandatory = $true)]
 	[string]$Database,
     [ValidateSet("Classic", "Centralised")]
 	[string]$InstallationType = "Classic",
