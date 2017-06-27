@@ -1,4 +1,56 @@
-﻿[CmdletBinding()]
+﻿<#
+.SYNOPSIS
+Install OpenQueryStore on specified instance/database
+
+.DESCRIPTION
+Verify if OQS is not already installed on destination database and if not will run the scripts to install it.
+
+.PARAMETER SqlInstance
+The SQL Server that you're connecting to.
+
+.PARAMETER Database
+Specifies the Database where OQS objects will be created
+
+.PARAMETER InstallationType
+Specifies the type of installation to be done. Classic (by default) or Centralised (will be available soon)
+
+.PARAMETER CertificateBackupPath
+Specifies the path where certificate backup will be saved. By default "C:\temp"
+
+.NOTES
+Author: Cláudio Silva (@ClaudioESSilva)
+
+Copyright:
+William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
+
+License:
+	This script is free to download and use for personal, educational, and internal
+	corporate purposes, provided that this header is preserved. Redistribution or sale
+	of this script, in whole or in part, is prohibited without the author's express
+	written consent.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+	OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+.LINK
+https://github.com/OpenQueryStore/OpenQueryStore
+
+.EXAMPLE
+.\Install.ps1 -SqlInstance SQL2012 -Database ScooterStore -InstallationType Classic
+
+Will install the Classic version on instance SQL2012 database named ScooterStore.
+
+.EXAMPLE
+.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -InstallationType Classic -CertificateBackupPath "C:\temp"
+
+Will install the Classic version on instance SQL2012 database named ScooterStore and use the folder "C:\temp" to save certificate backup.
+
+#>
+[CmdletBinding()]
 param (
 	[string]$SqlInstance,
 	[string]$Database,

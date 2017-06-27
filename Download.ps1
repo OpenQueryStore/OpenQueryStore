@@ -1,4 +1,15 @@
-﻿$path = "$HOME\Documents\OpenQueryStore"
+﻿<#
+.SYNOPSIS
+Download OpenQueryStore from GitHub repository
+
+.DESCRIPTION
+Download OQS to a temporary folder from GitHub repository.
+Unblock the zip file.
+Unzip it
+Move output to Documents\OpenQueryStore folder
+
+#>
+$path = "$HOME\Documents\OpenQueryStore"
 
 $url = 'https://github.com/OpenQueryStore/OpenQueryStore/archive/master.zip'
 $branch = "master"
