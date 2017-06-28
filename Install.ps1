@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Install OpenQueryStore on specified instance/database
 
@@ -65,6 +65,8 @@ $path = "$HOME\Documents\OpenQueryStore"
 $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
 
 try {
+    $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+
     #Connect to instance
     $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
 
@@ -110,7 +112,7 @@ try {
                     $null = $instance.ConnectionContext.ExecuteNonQuery($qInstallOQSClassic)
 
                     #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
-                    if ($srv.Databases["master"].Certificates | Where-Object Name -eq 'OpenQueryStore') {
+                    if ($instance.Databases["master"].Certificates | Where-Object Name -eq 'OpenQueryStore') {
                         Write-Verbose "OpenQueryStore certificate already exists"
                     }
                     else {
