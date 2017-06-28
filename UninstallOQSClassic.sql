@@ -126,9 +126,20 @@ BEGIN
     DROP CERTIFICATE [OpenQueryStore];
 END;
 
-IF EXISTS (   SELECT * 
-                FROM [sys].[schemas] AS [S] 
+IF EXISTS (   SELECT *
+                FROM [sys].[schemas] AS [S]
                WHERE [S].[name] = 'oqs')
 BEGIN
     EXEC ('DROP SCHEMA oqs');
+END;
+
+
+USE [master]
+GO
+
+IF EXISTS (   SELECT *
+                FROM [sys].[procedures] AS [P]
+               WHERE [P].[object_id] = OBJECT_ID(N'[dbo].[OpenQueryStoreStartup]'))
+BEGIN
+    DROP PROC [dbo].[OpenQueryStoreStartup];
 END;

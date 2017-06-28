@@ -8,21 +8,22 @@ William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
 
 https://github.com/OpenQueryStore/OpenQueryStore
 
-License: 
-	This script is free to download and use for personal, educational, and internal 
-	corporate purposes, provided that this header is preserved. Redistribution or sale 
-	of this script, in whole or in part, is prohibited without the author's express 
+License:
+	This script is free to download and use for personal, educational, and internal
+	corporate purposes, provided that this header is preserved. Redistribution or sale
+	of this script, in whole or in part, is prohibited without the author's express
 	written consent.
 
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES 
-	OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+	OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **********************************************************************************************/
-
+USE {DatabaseWhereOQSIsRunning}
+GO
 
 SET ANSI_NULLS ON;
 GO
@@ -109,7 +110,7 @@ WITH STATUS = ON,
                  EXECUTE AS OWNER);
 GO
 
--- This is a stored procedure to initiate the Service Broker loop, it can be called manually, or added as a 
+-- This is a stored procedure to initiate the Service Broker loop, it can be called manually, or added as a
 -- startup procedure to ensure data collection when SQL Server starts up
 CREATE PROCEDURE [oqs].[StartScheduler]
 AS
@@ -133,7 +134,7 @@ BEGIN
 END;
 GO
 
--- This is a stored procedure to (temporarilly) stop OQS data collection 
+-- This is a stored procedure to (temporarilly) stop OQS data collection
 CREATE PROCEDURE [oqs].[StopScheduler]
 AS
 BEGIN
