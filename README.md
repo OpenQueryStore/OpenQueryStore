@@ -14,7 +14,7 @@
 [forks]:https://github.com/OpenQueryStore/OpenQueryStore/network
 [issues]:https://github.com/OpenQueryStore/OpenQueryStore/issues
 
-## This is a project in early alpha. Please be aware that the code is NOT production ready.
+## This is a project in the early stages. Please be aware that the code is production ready, but should be tested before deploying in a  full production environment.
 
 **Currently supported SQL Server versions: SQL 2008 - 2014**
 
