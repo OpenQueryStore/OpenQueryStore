@@ -329,77 +329,77 @@ CASE
      WHEN @MajorVersion < 12 THEN 'CAST(NULL as bigint) '
      ELSE '' END + '[statement_context_id],' + -- statement_context_id appears in sql 2014
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_dop],' + -- total_dop appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_dop],' + -- total_dop appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_dop],' + -- last_dop appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_dop],' + -- last_dop appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_dop],' + -- min_dop appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_dop],' + -- min_dop appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_dop],' + -- max_dop appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_dop],' + -- max_dop appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_grant_kb],' + -- total_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_grant_kb],' + -- total_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_grant_kb],' + -- last_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_grant_kb],' + -- last_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_grant_kb],' + -- min_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_grant_kb],' + -- min_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_grant_kb],' + -- max_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_grant_kb],' + -- max_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_used_grant_kb],' + -- total_used_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_used_grant_kb],' + -- total_used_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_used_grant_kb],' + -- last_used_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_used_grant_kb],' + -- last_used_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_used_grant_kb],' + -- min_rows appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_used_grant_kb],' + -- min_rows appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_used_grant_kb],' + -- max_used_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_used_grant_kb],' + -- max_used_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_ideal_grant_kb],' + -- total_ideal_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_ideal_grant_kb],' + -- total_ideal_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_ideal_grant_kb],' + -- last_ideal_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_ideal_grant_kb],' + -- last_ideal_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_ideal_grant_kb],' + -- min_ideal_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_ideal_grant_kb],' + -- min_ideal_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_ideal_grant_kb],' + -- max_ideal_grant_kb appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_ideal_grant_kb],' + -- max_ideal_grant_kb appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_reserved_threads],' + -- total_reserved_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_reserved_threads],' + -- total_reserved_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_reserved_threads],' + -- last_reserved_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_reserved_threads],' + -- last_reserved_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_reserved_threads],' + -- min_reserved_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_reserved_threads],' + -- min_reserved_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_reserved_threads],' + -- max_reserved_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_reserved_threads],' + -- max_reserved_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[total_used_threads],' + -- total_used_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[total_used_threads],' + -- total_used_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[last_used_threads],' + -- last_used_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[last_used_threads],' + -- last_used_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[min_used_threads],' + -- min_used_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[min_used_threads],' + -- min_used_threads appears in sql 2016
 CASE
-     WHEN @MajorVersion < 11 THEN 'CAST(0 as bigint) '
-     ELSE '' END + '[max_used_threads]' + -- max_used_threads appears in sql 2012
+     WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) '
+     ELSE '' END + '[max_used_threads]' + -- max_used_threads appears in sql 2016
 ' FROM [sys].[dm_exec_query_stats];';
 
 EXEC (@ViewDefinition);
