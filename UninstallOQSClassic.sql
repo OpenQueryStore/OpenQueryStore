@@ -106,6 +106,13 @@ BEGIN
 END;
 
 IF EXISTS (   SELECT *
+                FROM [sys].[tables] AS [T]
+               WHERE [T].[object_id] = OBJECT_ID(N'[oqs].[WaitStats]'))
+BEGIN
+    DROP TABLE [oqs].[WaitStats];
+END;
+
+IF EXISTS (   SELECT *
                 FROM [sys].[views] AS [V]
                WHERE [V].[object_id] = OBJECT_ID(N'[oqs].[QueryStats]'))
 BEGIN

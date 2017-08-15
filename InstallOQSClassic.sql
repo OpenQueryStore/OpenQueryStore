@@ -153,17 +153,15 @@ GO
 CREATE TABLE [oqs].[Intervals] (
     [IntervalId] [INT] IDENTITY(1, 1) NOT NULL,
     [IntervalStart] [DATETIME] NULL,
-    [IntervalEnd] [DATETIME] NULL) ON [PRIMARY];
-GO
-
-CREATE CLUSTERED INDEX [idx_IntervalId]
-ON [oqs].[Intervals] ([IntervalId] ASC);
+    [IntervalEnd] [DATETIME] NULL,
+    CONSTRAINT PK_Intervals PRIMARY KEY CLUSTERED (IntervalId)) ON [PRIMARY];
 GO
 
 -- Create plan and DBID table
 CREATE TABLE [oqs].[PlanDBID] (
-    [plan_handle] VARBINARY(64),
-    [dbid] INT);
+    [plan_handle] VARBINARY(64) NOT NULL,
+    [dbid] INT NOT NULL,
+    CONSTRAINT PK_PlanDBID PRIMARY KEY CLUSTERED (plan_handle,dbid));
 GO
 
 -- Create plans table
@@ -178,11 +176,8 @@ CREATE TABLE [oqs].[Plans] (
     [plan_sizeinbytes] [INT] NULL,
     [plan_type] [NVARCHAR](50) NULL,
     [plan_objecttype] [NVARCHAR](20) NULL,
-    [plan_executionplan] [XML] NULL) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
-GO
-
-CREATE CLUSTERED INDEX [idx_Plan_id]
-ON [oqs].[Plans] ([plan_id] ASC);
+    [plan_executionplan] [XML] NULL,
+    CONSTRAINT PK_Plans PRIMARY KEY CLUSTERED (plan_id)) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
 GO
 
 -- Create the queries table
@@ -194,51 +189,59 @@ CREATE TABLE [oqs].[Queries] (
     [query_statement_text] [NVARCHAR](MAX) NULL,
     [query_statement_start_offset] [INT] NULL,
     [query_statement_end_offset] [INT] NULL,
-    [query_creation_time] [DATETIME] NULL) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
-GO
-
-CREATE CLUSTERED INDEX [idx_Query_id]
-ON [oqs].[Queries] ([query_id] ASC);
+    [query_creation_time] [DATETIME] NULL,
+    CONSTRAINT PK_Queries PRIMARY KEY CLUSTERED (query_id)) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
 GO
 
 -- Create the Runtime Statistics table
 CREATE TABLE [oqs].[QueryRuntimeStats] (
-    [query_id] [INT] NULL,
-    [interval_id] [INT] NULL,
-    [creation_time] [DATETIME] NULL,
-    [last_execution_time] [DATETIME] NULL,
-    [execution_count] [BIGINT] NULL,
-    [total_elapsed_time] [BIGINT] NULL,
-    [last_elapsed_time] [BIGINT] NULL,
-    [min_elapsed_time] [BIGINT] NULL,
-    [max_elapsed_time] [BIGINT] NULL,
-    [avg_elapsed_time] [BIGINT] NULL,
-    [total_rows] [BIGINT] NULL,
-    [last_rows] [BIGINT] NULL,
-    [min_rows] [BIGINT] NULL,
-    [max_rows] [BIGINT] NULL,
-    [avg_rows] [BIGINT] NULL,
-    [total_worker_time] [BIGINT] NULL,
-    [last_worker_time] [BIGINT] NULL,
-    [min_worker_time] [BIGINT] NULL,
-    [max_worker_time] [BIGINT] NULL,
-    [avg_worker_time] [BIGINT] NULL,
-    [total_physical_reads] [BIGINT] NULL,
-    [last_physical_reads] [BIGINT] NULL,
-    [min_physical_reads] [BIGINT] NULL,
-    [max_physical_reads] [BIGINT] NULL,
-    [avg_physical_reads] [BIGINT] NULL,
-    [total_logical_reads] [BIGINT] NULL,
-    [last_logical_reads] [BIGINT] NULL,
-    [min_logical_reads] [BIGINT] NULL,
-    [max_logical_reads] [BIGINT] NULL,
-    [avg_logical_reads] [BIGINT] NULL,
-    [total_logical_writes] [BIGINT] NULL,
-    [last_logical_writes] [BIGINT] NULL,
-    [min_logical_writes] [BIGINT] NULL,
-    [max_logical_writes] [BIGINT] NULL,
-    [avg_logical_writes] [BIGINT] NULL) ON [PRIMARY];
+    [query_id] [INT] NOT NULL,
+    [interval_id] [INT] NOT NULL,
+    [creation_time] [DATETIME] NOT NULL,
+    [last_execution_time] [DATETIME] NOT NULL,
+    [execution_count] [BIGINT] NOT NULL,
+    [total_elapsed_time] [BIGINT] NOT NULL,
+    [last_elapsed_time] [BIGINT] NOT NULL,
+    [min_elapsed_time] [BIGINT] NOT NULL,
+    [max_elapsed_time] [BIGINT] NOT NULL,
+    [avg_elapsed_time] [BIGINT] NOT NULL,
+    [total_rows] [BIGINT] NOT NULL,
+    [last_rows] [BIGINT] NOT NULL,
+    [min_rows] [BIGINT] NOT NULL,
+    [max_rows] [BIGINT] NOT NULL,
+    [avg_rows] [BIGINT] NOT NULL,
+    [total_worker_time] [BIGINT] NOT NULL,
+    [last_worker_time] [BIGINT] NOT NULL,
+    [min_worker_time] [BIGINT] NOT NULL,
+    [max_worker_time] [BIGINT] NOT NULL,
+    [avg_worker_time] [BIGINT] NOT NULL,
+    [total_physical_reads] [BIGINT] NOT NULL,
+    [last_physical_reads] [BIGINT] NOT NULL,
+    [min_physical_reads] [BIGINT] NOT NULL,
+    [max_physical_reads] [BIGINT] NOT NULL,
+    [avg_physical_reads] [BIGINT] NOT NULL,
+    [total_logical_reads] [BIGINT] NOT NULL,
+    [last_logical_reads] [BIGINT] NOT NULL,
+    [min_logical_reads] [BIGINT] NOT NULL,
+    [max_logical_reads] [BIGINT] NOT NULL,
+    [avg_logical_reads] [BIGINT] NOT NULL,
+    [total_logical_writes] [BIGINT] NOT NULL,
+    [last_logical_writes] [BIGINT] NOT NULL,
+    [min_logical_writes] [BIGINT] NOT NULL,
+    [max_logical_writes] [BIGINT] NOT NULL,
+    [avg_logical_writes] [BIGINT] NOT NULL,
+    CONSTRAINT PK_QueryRuntimeStats PRIMARY KEY CLUSTERED (query_id,interval_id)) ON [PRIMARY];
 GO
+
+CREATE TABLE [oqs].[WaitStats](
+	[interval_id] [INT] NOT NULL,
+	[wait_type] [NVARCHAR](60) NOT NULL,
+	[waiting_tasks_count] [BIGINT] NOT NULL,
+	[wait_time_ms] [BIGINT] NOT NULL,
+	[max_wait_time_ms] [BIGINT] NOT NULL,
+	[signal_wait_time_ms] [BIGINT] NOT NULL,
+	CONSTRAINT PK_WaitStats PRIMARY KEY CLUSTERED ([interval_id],[wait_type])
+) ON [PRIMARY]
 
 -- Create logging table
 CREATE TABLE [oqs].[ActivityLog] (
@@ -246,8 +249,7 @@ CREATE TABLE [oqs].[ActivityLog] (
     [LogRunID] [INT] NULL,
     [DateTime] [DATETIME] NULL,
     [Message] [VARCHAR](250) NULL,
-    CONSTRAINT [PK_Log]
-        PRIMARY KEY CLUSTERED ([LogID])) ON [PRIMARY];
+    CONSTRAINT [PK_Log] PRIMARY KEY CLUSTERED ([LogID])) ON [PRIMARY];
 GO
 
 
@@ -414,6 +416,7 @@ TRUNCATE TABLE [oqs].[PlanDBID];
 TRUNCATE TABLE [oqs].[Plans];
 TRUNCATE TABLE [oqs].[Queries];
 TRUNCATE TABLE [oqs].[QueryRuntimeStats];
+TRUNCATE TABLE [oqs].[WaitStats];
 GO
 
 -- Create the OQS Gather_Statistics Stored Procedure
@@ -425,6 +428,7 @@ DECLARE @log_logrunid INT;
 DECLARE @log_newplans INT;
 DECLARE @log_newqueries INT;
 DECLARE @log_runtime_stats INT;
+DECLARE @log_wait_stats INT;
 
 BEGIN
 
@@ -515,7 +519,7 @@ BEGIN
                 'OpenQueryStore captured ' + CONVERT(VARCHAR, @log_newplans) + ' new plan(s)...');
     END
 
-    -- Grab all of the queries (statement level) that are connected to the plans inside the OQS
+	-- Grab all of the queries (statement level) that are connected to the plans inside the OQS
     ;
     WITH [CTE_Queries] ([plan_id], [plan_handle], [plan_MD5])
       AS (SELECT [plan_id],
@@ -562,6 +566,8 @@ BEGIN
     -- Grab the interval_id of the interval we added at the beginning
     DECLARE @Interval_ID INT;
     SET @Interval_ID = IDENT_CURRENT('[oqs].[Intervals]');
+
+-- Query Runtime Snapshot
 
     -- Insert runtime statistics for every query statement that is recorded inside the OQS
     INSERT INTO [oqs].[QueryRuntimeStats] ([query_id],
@@ -649,6 +655,36 @@ BEGIN
           FROM [oqs].[QueryRuntimeStats];
     END;
 
+    -- Wait stats snapshot
+	INSERT INTO [oqs].[WaitStats]
+		(
+			[interval_id],
+			[wait_type],
+			[waiting_tasks_count],
+			[wait_time_ms],
+			[max_wait_time_ms],
+			[signal_wait_time_ms]
+		)
+	SELECT
+		@Interval_ID,
+		wait_type,           
+		waiting_tasks_count, 
+		wait_time_ms,        
+		max_wait_time_ms,    
+		signal_wait_time_ms  
+	FROM
+		sys.dm_os_wait_stats
+	WHERE
+		waiting_tasks_count > 0;
+	
+	-- DEBUG: Get current info of the wait stats table
+    IF @debug = 1
+    BEGIN
+        SELECT 'Snapshot of wait stats';
+        SELECT *
+          FROM [oqs].[WaitStats] AS [WS];
+    END;
+
     -- Close the interval now that the statistics are in
     UPDATE [oqs].[Intervals]
        SET [IntervalEnd] = GETDATE()
@@ -663,8 +699,13 @@ BEGIN
         DROP TABLE [#OQS_Runtime_Stats];
     END
 
-    -- Calculate deltas and insert them in the temp table
-    ;
+    IF OBJECT_ID('tempdb..#OQS_Wait_Stats') IS NOT NULL
+    BEGIN
+        DROP TABLE [#OQS_Wait_Stats];
+    END
+
+    -- Calculate Deltas for Runtime stats
+;
     WITH [CTE_Update_Runtime_Stats] ([query_id], [interval_id], [execution_count], [total_elapsed_time], [total_rows],
                                      [total_worker_time], [total_physical_reads], [total_logical_reads],
                                      [total_logical_writes])
@@ -763,6 +804,75 @@ BEGIN
         SELECT 'Snapshot of runtime statistics after delta update';
         SELECT *
           FROM [oqs].[QueryRuntimeStats];
+    END;
+
+    -- Calculate Deltas for Wait stats
+;
+    WITH [CTE_Update_wait_Stats] (
+			[interval_id],
+			[wait_type],
+			[waiting_tasks_count],
+			[wait_time_ms],
+			[max_wait_time_ms],
+			[signal_wait_time_ms]
+		)
+      AS (SELECT [WS].[interval_id],
+                 [WS].[wait_type],
+                 [WS].[waiting_tasks_count],
+                 [WS].[wait_time_ms],
+                 [WS].[max_wait_time_ms],
+                 [WS].[signal_wait_time_ms]
+            FROM [oqs].[WaitStats] AS [WS]
+           WHERE [interval_id] = (SELECT MAX([IntervalId]) - 1 FROM [oqs].[Intervals]))
+    SELECT [cte].[wait_type],
+           [cte].[interval_id],
+           ([ws].[waiting_tasks_count] - [cte].[waiting_tasks_count]) AS [Delta Waiting Tasks Count],
+           ([ws].[wait_time_ms] - [cte].[wait_time_ms]) AS [Delta Wait Time ms],
+           (ws.[max_wait_time_ms] - cte.[max_wait_time_ms]) AS [Delta Max Wait Time ms],
+		   (ws.[signal_wait_time_ms] - cte.[signal_wait_time_ms]) AS [Delta Signal Wait Time ms]
+    INTO   [#OQS_Wait_Stats]
+      FROM [CTE_Update_wait_Stats] AS [cte]
+     INNER JOIN [oqs].[WaitStats] AS [WS]
+        ON [cte].[wait_type] = [WS].[wait_type]
+     WHERE [WS].[interval_id] = (SELECT MAX([IntervalId]) FROM [oqs].[Intervals]);
+
+    SET @log_wait_stats = @@ROWCOUNT;
+
+    IF @logmode = 1
+    BEGIN
+        INSERT INTO [oqs].[ActivityLog] ([LogRunID],
+                                         [DateTime],
+                                         [Message])
+        VALUES (@log_logrunid,
+                GETDATE(),
+                'OpenQueryStore captured ' + CONVERT(VARCHAR, @log_wait_stats) + ' wait statistics...');
+    END;
+
+    IF @debug = 1
+    BEGIN
+        SELECT 'Snapshot of wait stats deltas';
+        SELECT *
+          FROM [#OQS_Wait_Stats];
+    END;
+
+
+    -- Update the runtime statistics of the queries captured in the previous interval
+    -- with the delta runtime information
+    UPDATE [WS]
+       SET [WS].[waiting_tasks_count] = [tws].[Delta Waiting Tasks Count],
+           [WS].[wait_time_ms] = [Delta Wait Time ms],
+           [WS].[max_wait_time_ms] =  [Delta Max Wait Time ms],
+           [WS].[signal_wait_time_ms] = [Delta Signal Wait Time ms]
+      FROM [oqs].[WaitStats] AS [WS]
+     INNER JOIN [#OQS_Wait_Stats] AS [tws]
+        ON (   [ws].[interval_id] = [tws].[interval_id]
+         AND   [ws].[wait_type]    = [tws].[wait_type]);
+
+    IF @debug = 1
+    BEGIN
+        SELECT 'Snapshot of runtime statistics after delta update';
+        SELECT *
+          FROM [oqs].[WaitStats] AS [WS];
     END;
 
     -- And we are done!
