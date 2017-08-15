@@ -675,7 +675,7 @@ BEGIN
 	FROM
 		sys.dm_os_wait_stats
 	WHERE
-		waiting_tasks_count > 0;
+		(waiting_tasks_count > 0 AND wait_time_ms > 0);
 	
 	-- DEBUG: Get current info of the wait stats table
     IF @debug = 1
@@ -874,6 +874,10 @@ BEGIN
         SELECT *
           FROM [oqs].[WaitStats] AS [WS];
     END;
+
+    -- Remove the wait stats delta's where 0 waits occured
+    DELETE FROM [oqs].[WaitStats]
+    WHERE (waiting_tasks_count = 0 AND interval_id = (SELECT MAX([IntervalId]) - 1 FROM [oqs].[Intervals]))
 
     -- And we are done!
     IF @logmode = 1
