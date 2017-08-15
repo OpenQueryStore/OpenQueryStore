@@ -18,7 +18,7 @@
 
 **Currently supported SQL Server versions: SQL 2008 - 2014**
 
-**Currently supported SQL Server Management Studio versions: 2016 - 2017**
+**Currently supported SQL Server Management Studio versions: 16.x and 17.x**
 
 OpenQueryStore (OQS) is a collection of scripts that add Query Store like functionality to pre-SQL Server 2016 Instances!
 
