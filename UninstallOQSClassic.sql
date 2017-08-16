@@ -150,3 +150,10 @@ IF EXISTS (   SELECT *
 BEGIN
     DROP PROC [dbo].[OpenQueryStoreStartup];
 END;
+
+IF EXISTS (   SELECT *
+                FROM [sys].[certificates] AS [C]
+               WHERE [C].[name] = 'OpenQueryStore')
+BEGIN
+    DROP CERTIFICATE [OpenQueryStore];
+END;
