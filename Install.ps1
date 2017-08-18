@@ -141,7 +141,7 @@ try {
     #Copy rdl to $mydocuments\SQL Server Management Studio\Custom Reports
     $customReportsPath = [environment]::GetFolderPath([environment+SpecialFolder]::MyDocuments) + "\SQL Server Management Studio\Custom Reports"
     if ((Test-Path $customReportsPath) -eq $false ) { 
-        $null = New-Item -Path $customReportsPath -Force
+        $null = New-Item -Path $customReportsPath -Force -ItemType Directory
     }
 
     Write-Output "Copying custom report (OpenQueryStoreDashboard.rdl) to $customReportsPath"
