@@ -275,14 +275,15 @@ WHERE OBJECT_SCHEMA_NAME(object_id) = 'oqs'</CommandText>
     <DataSet Name="QS_Item_Count">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT        DB_NAME() AS 'Database', COUNT(DISTINCT query_id) AS 'Queries',
-                             (SELECT        COUNT(DISTINCT plan_id) AS Expr1
-                               FROM            oqs.Plans) AS 'Plans',
-                             (SELECT        COUNT(IntervalId) AS Expr1
-                               FROM            oqs.Intervals) AS 'Intervals',
-                             (SELECT        COUNT(query_id) AS Expr1
-                               FROM            oqs.QueryRuntimeStats) AS 'RuntimeStats'
-FROM            oqs.Queries</CommandText>
+        <CommandText>SELECT        
+  DB_NAME() AS 'Database', 
+  COUNT(DISTINCT query_id) AS 'Queries',
+  (SELECT COUNT(DISTINCT plan_id) AS Expr1 FROM oqs.Plans) AS 'Plans',
+  (SELECT COUNT(IntervalId) AS Expr1 FROM oqs.Intervals) AS 'Intervals',
+  (SELECT COUNT(query_id) AS Expr1 FROM oqs.QueryRuntimeStats) AS 'RuntimeStats',
+  (SELECT COUNT(wait_type) AS Expr1 FROM oqs.WaitStats) AS 'WaitStats'
+FROM oqs.Queries</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
       <Fields>
         <Field Name="Database">
@@ -303,6 +304,10 @@ FROM            oqs.Queries</CommandText>
         </Field>
         <Field Name="RuntimeStats">
           <DataField>RuntimeStats</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
+        </Field>
+        <Field Name="WaitStats">
+          <DataField>WaitStats</DataField>
           <rd:TypeName>System.Int32</rd:TypeName>
         </Field>
       </Fields>
@@ -3943,6 +3948,9 @@ WHERE        (LogRunID =
                 <ChartMember>
                   <Label>Intervals</Label>
                 </ChartMember>
+                <ChartMember>
+                  <Label>Wait Stats</Label>
+                </ChartMember>
               </ChartMembers>
             </ChartSeriesHierarchy>
             <ChartData>
@@ -4051,6 +4059,39 @@ WHERE        (LogRunID =
                     <ChartDataPoint>
                       <ChartDataPointValues>
                         <Y>=Sum(Fields!Intervals.Value)</Y>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+                <ChartSeries Name="WaitStats">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <Y>=Sum(Fields!WaitStats.Value)</Y>
                       </ChartDataPointValues>
                       <ChartDataLabel>
                         <Style />
