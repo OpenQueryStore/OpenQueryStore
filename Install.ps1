@@ -85,7 +85,7 @@ PROCESS {
     }
 
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
-    if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
+    if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 16) {
         Write-Error "We only support instances from SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
         return
     }
@@ -125,20 +125,22 @@ PROCESS {
     $InstallServiceBrokerCertificate = Get-Content -Path "$path\install_service_broker_certificate.sql" -Raw
     $InstallSQLAgentJob = Get-Content -Path "$path\install_sql_agent_job.sql" -Raw
 
-    if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq ""){
+    if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
         Write-Warning "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
         return
     }
 
     # Replace placeholders
-    $InstallOQSBase = $InstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
-    $InstallOQSBase = $InstallOQSBase -replace "{OQSMode}", "[$OQSMode]"
-    $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
+    $InstallOQSBase = $InstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+    $InstallOQSBase = $InstallOQSBase -replace "{OQSMode}", "$OQSMode"
+    $InstallOQSGatherStatistics = $InstallOQSGatherStatistics -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+    $InstallServiceBroker = $InstallServiceBroker -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+    $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "{DatabaseWhereOQSIsRunning}", "$Database"
     $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "Enter A File Location accessible by the SQL Server Service Account", "$CertificateBackupFullPath"
-    $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
+    $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "$Database"
 
     # Ready to install!
-    Write-Warning "Installing OQS ($OQSMode & $InstallationType) on $SqlInstance in $database"
+    Write-Warning "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
     
     Write-Output "Installing OQS base objects"
     $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
@@ -164,19 +166,19 @@ PROCESS {
             Write-Warning "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."                   
         }
     }
-    if ($OQSMode -eq "centralized")
-     {
-            Write-Warning "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases."
-        }
+    if ($OQSMode -eq "centralized") {
+        Write-Warning "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases."
+    }
     
-    Write-Warning "To avoid data collection causing resource issues, OQS data capture is deactivated, please update the value in column 'collection_active' in table oqs.collection_metadata."
+    Write-Warning "To avoid data collection causing resource issues, OQS data capture is deactivated. "
+    Write-Warning "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
     
+    if ($SchedulerType -eq "Service Broker") {
+        Write-Warning "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time."
+    }
+        
     Write-Warning "Open Query Store installation complete."
-
+}
 END {
     $instance.ConnectionContext.Disconnect()
-
-    #Clean up the certificate if it was created
-    if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
-    Remove-Item -Path $CertificateBackupFullPath -Force   }
 }
