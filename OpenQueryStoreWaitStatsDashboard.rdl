@@ -1,0 +1,2059 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Report MustUnderstand="df" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition" xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:df="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition/defaultfontfamily">
+  <df:DefaultFontFamily>Segoe UI</df:DefaultFontFamily>
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="Localhost">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString>Data Source=.</ConnectString>
+        <IntegratedSecurity>true</IntegratedSecurity>
+      </ConnectionProperties>
+      <rd:SecurityType>Integrated</rd:SecurityType>
+      <rd:DataSourceID>0bf08501-324c-40f2-b919-1bbf4bcc83fa</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="top10_ws_last_hour">
+      <Query>
+        <DataSourceName>Localhost</DataSourceName>
+        <CommandText>SELECT   TOP ( 10 ) [qws].[wait_type] ,
+         SUM([qws].[wait_time_ms]) AS [Total wait time]
+FROM     [oqs].[wait_stats] AS [qws]
+         INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
+WHERE    ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
+         AND ( [i].[interval_id] &lt; (   SELECT MAX([interval_id]) AS [Expr1]
+                                      FROM   [oqs].[intervals]
+                                  )
+             )
+         AND ( [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
+                                          N'BROKER_RECEIVE_WAITFOR' ,
+                                          N'BROKER_TASK_STOP' ,
+                                          N'BROKER_TO_FLUSH' ,
+                                          N'BROKER_TRANSMITTER' ,
+                                          N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
+                                          N'CLR_AUTO_EVENT' ,
+                                          N'CLR_MANUAL_EVENT' ,N'CLR_SEMAPHORE' ,
+                                          N'DBMIRROR_DBM_EVENT' ,
+                                          N'DBMIRROR_EVENTS_QUEUE' ,
+                                          N'DBMIRROR_WORKER_QUEUE' ,
+                                          N'DBMIRRORING_CMD' ,
+                                          N'DIRTY_PAGE_POLL' ,
+                                          N'DISPATCHER_QUEUE_SEMAPHORE' ,
+                                          N'EXECSYNC' ,N'FSAGENT' ,
+                                          N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
+                                          N'FT_IFTSHC_MUTEX' ,
+                                          N'HADR_CLUSAPI_CALL' ,
+                                          N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
+                                          N'HADR_LOGCAPTURE_WAIT' ,
+                                          N'HADR_NOTIFICATION_DEQUEUE' ,
+                                          N'HADR_TIMER_TASK' ,
+                                          N'HADR_WORK_QUEUE' ,N'KSOURCE_WAKEUP' ,
+                                          N'LAZYWRITER_SLEEP' ,N'LOGMGR_QUEUE' ,
+                                          N'MEMORY_ALLOCATION_EXT' ,
+                                          N'ONDEMAND_TASK_QUEUE' ,
+                                          N'PREEMPTIVE_XE_GETTARGETSTATE' ,
+                                          N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
+                                          N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
+                                          N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
+                                          N'QDS_ASYNC_QUEUE' ,
+                                          N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
+                                          N'QDS_SHUTDOWN_QUEUE' ,
+                                          N'REDO_THREAD_PENDING_WORK' ,
+                                          N'REQUEST_FOR_DEADLOCK_SEARCH' ,
+                                          N'RESOURCE_QUEUE' ,
+                                          N'SERVER_IDLE_CHECK' ,
+                                          N'SLEEP_BPOOL_FLUSH' ,
+                                          N'SLEEP_DBSTARTUP' ,
+                                          N'SLEEP_DCOMSTARTUP' ,
+                                          N'SLEEP_MASTERDBREADY' ,
+                                          N'SLEEP_MASTERMDREADY' ,
+                                          N'SLEEP_MASTERUPGRADED' ,
+                                          N'SLEEP_MSDBSTARTUP' ,
+                                          N'SLEEP_SYSTEMTASK' ,N'SLEEP_TASK' ,
+                                          N'SLEEP_TEMPDBSTARTUP' ,
+                                          N'SNI_HTTP_ACCEPT' ,
+                                          N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
+                                          N'SQLTRACE_BUFFER_FLUSH' ,
+                                          N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
+                                          N'SQLTRACE_WAIT_ENTRIES' ,
+                                          N'WAIT_FOR_RESULTS' ,N'WAITFOR' ,
+                                          N'WAITFOR_TASKSHUTDOWN' ,
+                                          N'WAIT_XTP_RECOVERY' ,
+                                          N'WAIT_XTP_HOST_WAIT' ,
+                                          N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
+                                          N'WAIT_XTP_CKPT_CLOSE' ,
+                                          N'XE_DISPATCHER_JOIN' ,
+                                          N'XE_DISPATCHER_WAIT' ,
+                                          N'XE_TIMER_EVENT'
+                                        )
+             )
+GROUP BY [qws].[wait_type]
+ORDER BY 'Total wait time' DESC;</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="wait_type">
+          <DataField>wait_type</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Total_wait_time">
+          <DataField>Total wait time</DataField>
+          <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="top3_ws_per_interval_last_hour">
+      <Query>
+        <DataSourceName>Localhost</DataSourceName>
+        <CommandText>SELECT *
+FROM   (   SELECT CONVERT(VARCHAR, [i].[interval_end], 108) AS [TimeDate] ,
+                  [qws].[wait_type] ,
+                  [qws].[wait_time_ms] ,
+                  ROW_NUMBER() OVER ( PARTITION BY qws.[interval_id]
+                                      ORDER BY [qws].[wait_type] ASC
+                                    ) AS [r]
+           FROM   [oqs].[wait_stats] AS [qws]
+                  INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
+           WHERE  ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
+                  AND [i].[interval_id] &lt; (   SELECT MAX([interval_id])
+                                              FROM   [oqs].[intervals]
+                                          )
+                  AND [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
+                                                 N'BROKER_RECEIVE_WAITFOR' ,
+                                                 N'BROKER_TASK_STOP' ,
+                                                 N'BROKER_TO_FLUSH' ,
+                                                 N'BROKER_TRANSMITTER' ,
+                                                 N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
+                                                 N'CLR_AUTO_EVENT' ,
+                                                 N'CLR_MANUAL_EVENT' ,
+                                                 N'CLR_SEMAPHORE' ,
+                                                 N'DBMIRROR_DBM_EVENT' ,
+                                                 N'DBMIRROR_EVENTS_QUEUE' ,
+                                                 N'DBMIRROR_WORKER_QUEUE' ,
+                                                 N'DBMIRRORING_CMD' ,
+                                                 N'DIRTY_PAGE_POLL' ,
+                                                 N'DISPATCHER_QUEUE_SEMAPHORE' ,
+                                                 N'EXECSYNC' ,N'FSAGENT' ,
+                                                 N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
+                                                 N'FT_IFTSHC_MUTEX' ,
+                                                 N'HADR_CLUSAPI_CALL' ,
+                                                 N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
+                                                 N'HADR_LOGCAPTURE_WAIT' ,
+                                                 N'HADR_NOTIFICATION_DEQUEUE' ,
+                                                 N'HADR_TIMER_TASK' ,
+                                                 N'HADR_WORK_QUEUE' ,
+                                                 N'KSOURCE_WAKEUP' ,
+                                                 N'LAZYWRITER_SLEEP' ,
+                                                 N'LOGMGR_QUEUE' ,
+                                                 N'MEMORY_ALLOCATION_EXT' ,
+                                                 N'ONDEMAND_TASK_QUEUE' ,
+                                                 N'PREEMPTIVE_XE_GETTARGETSTATE' ,
+                                                 N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
+                                                 N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
+                                                 N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
+                                                 N'QDS_ASYNC_QUEUE' ,
+                                                 N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
+                                                 N'QDS_SHUTDOWN_QUEUE' ,
+                                                 N'REDO_THREAD_PENDING_WORK' ,
+                                                 N'REQUEST_FOR_DEADLOCK_SEARCH' ,
+                                                 N'RESOURCE_QUEUE' ,
+                                                 N'SERVER_IDLE_CHECK' ,
+                                                 N'SLEEP_BPOOL_FLUSH' ,
+                                                 N'SLEEP_DBSTARTUP' ,
+                                                 N'SLEEP_DCOMSTARTUP' ,
+                                                 N'SLEEP_MASTERDBREADY' ,
+                                                 N'SLEEP_MASTERMDREADY' ,
+                                                 N'SLEEP_MASTERUPGRADED' ,
+                                                 N'SLEEP_MSDBSTARTUP' ,
+                                                 N'SLEEP_SYSTEMTASK' ,
+                                                 N'SLEEP_TASK' ,
+                                                 N'SLEEP_TEMPDBSTARTUP' ,
+                                                 N'SNI_HTTP_ACCEPT' ,
+                                                 N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
+                                                 N'SQLTRACE_BUFFER_FLUSH' ,
+                                                 N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
+                                                 N'SQLTRACE_WAIT_ENTRIES' ,
+                                                 N'WAIT_FOR_RESULTS' ,
+                                                 N'WAITFOR' ,
+                                                 N'WAITFOR_TASKSHUTDOWN' ,
+                                                 N'WAIT_XTP_RECOVERY' ,
+                                                 N'WAIT_XTP_HOST_WAIT' ,
+                                                 N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
+                                                 N'WAIT_XTP_CKPT_CLOSE' ,
+                                                 N'XE_DISPATCHER_JOIN' ,
+                                                 N'XE_DISPATCHER_WAIT' ,
+                                                 N'XE_TIMER_EVENT'
+                                               )
+       ) AS [a]
+WHERE  [a].[r] &lt;= 3;</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="TimeDate">
+          <DataField>TimeDate</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="wait_type">
+          <DataField>wait_type</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="wait_time_ms">
+          <DataField>wait_time_ms</DataField>
+          <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+        <Field Name="r">
+          <DataField>r</DataField>
+          <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="total_wait_time_per_interval_last_hour">
+      <Query>
+        <DataSourceName>Localhost</DataSourceName>
+        <CommandText>SELECT   TOP 10 CONVERT(VARCHAR, [i].[interval_end], 108) AS [TimeDate] ,
+         SUM([qws].[wait_time_ms]) AS [Total wait time] ,
+         SUM([qws].[waiting_tasks_count]) AS [Waitings Tasks]
+FROM     [oqs].[wait_stats] AS [qws]
+         INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
+WHERE    ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
+         AND [i].[interval_id] &lt; (   SELECT MAX([interval_id])
+                                     FROM   [oqs].[intervals]
+                                 )
+         AND [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
+                                        N'BROKER_RECEIVE_WAITFOR' ,
+                                        N'BROKER_TASK_STOP' ,N'BROKER_TO_FLUSH' ,
+                                        N'BROKER_TRANSMITTER' ,
+                                        N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
+                                        N'CLR_AUTO_EVENT' ,N'CLR_MANUAL_EVENT' ,
+                                        N'CLR_SEMAPHORE' ,N'DBMIRROR_DBM_EVENT' ,
+                                        N'DBMIRROR_EVENTS_QUEUE' ,
+                                        N'DBMIRROR_WORKER_QUEUE' ,
+                                        N'DBMIRRORING_CMD' ,N'DIRTY_PAGE_POLL' ,
+                                        N'DISPATCHER_QUEUE_SEMAPHORE' ,
+                                        N'EXECSYNC' ,N'FSAGENT' ,
+                                        N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
+                                        N'FT_IFTSHC_MUTEX' ,
+                                        N'HADR_CLUSAPI_CALL' ,
+                                        N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
+                                        N'HADR_LOGCAPTURE_WAIT' ,
+                                        N'HADR_NOTIFICATION_DEQUEUE' ,
+                                        N'HADR_TIMER_TASK' ,N'HADR_WORK_QUEUE' ,
+                                        N'KSOURCE_WAKEUP' ,N'LAZYWRITER_SLEEP' ,
+                                        N'LOGMGR_QUEUE' ,
+                                        N'MEMORY_ALLOCATION_EXT' ,
+                                        N'ONDEMAND_TASK_QUEUE' ,
+                                        N'PREEMPTIVE_XE_GETTARGETSTATE' ,
+                                        N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
+                                        N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
+                                        N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
+                                        N'QDS_ASYNC_QUEUE' ,
+                                        N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
+                                        N'QDS_SHUTDOWN_QUEUE' ,
+                                        N'REDO_THREAD_PENDING_WORK' ,
+                                        N'REQUEST_FOR_DEADLOCK_SEARCH' ,
+                                        N'RESOURCE_QUEUE' ,N'SERVER_IDLE_CHECK' ,
+                                        N'SLEEP_BPOOL_FLUSH' ,
+                                        N'SLEEP_DBSTARTUP' ,
+                                        N'SLEEP_DCOMSTARTUP' ,
+                                        N'SLEEP_MASTERDBREADY' ,
+                                        N'SLEEP_MASTERMDREADY' ,
+                                        N'SLEEP_MASTERUPGRADED' ,
+                                        N'SLEEP_MSDBSTARTUP' ,
+                                        N'SLEEP_SYSTEMTASK' ,N'SLEEP_TASK' ,
+                                        N'SLEEP_TEMPDBSTARTUP' ,
+                                        N'SNI_HTTP_ACCEPT' ,
+                                        N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
+                                        N'SQLTRACE_BUFFER_FLUSH' ,
+                                        N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
+                                        N'SQLTRACE_WAIT_ENTRIES' ,
+                                        N'WAIT_FOR_RESULTS' ,N'WAITFOR' ,
+                                        N'WAITFOR_TASKSHUTDOWN' ,
+                                        N'WAIT_XTP_RECOVERY' ,
+                                        N'WAIT_XTP_HOST_WAIT' ,
+                                        N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
+                                        N'WAIT_XTP_CKPT_CLOSE' ,
+                                        N'XE_DISPATCHER_JOIN' ,
+                                        N'XE_DISPATCHER_WAIT' ,N'XE_TIMER_EVENT'
+                                      )
+GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="TimeDate">
+          <DataField>TimeDate</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Total_wait_time">
+          <DataField>Total wait time</DataField>
+          <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+        <Field Name="Waitings_Tasks">
+          <DataField>Waitings Tasks</DataField>
+          <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Line Name="Line1">
+            <Top>2.15264cm</Top>
+            <Left>0.26458cm</Left>
+            <Height>0cm</Height>
+            <Width>37.59326cm</Width>
+            <Style>
+              <Border>
+                <Color>Silver</Color>
+                <Style>Solid</Style>
+              </Border>
+            </Style>
+          </Line>
+          <Textbox Name="Textbox49">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>Hourly overview</Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                      <FontSize>12pt</FontSize>
+                      <FontWeight>Bold</FontWeight>
+                      <Color>DimGray</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox49</rd:DefaultName>
+            <Top>2.24613cm</Top>
+            <Left>0.5789cm</Left>
+            <Height>0.6cm</Height>
+            <Width>4.24625cm</Width>
+            <ZIndex>1</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
+          <Image Name="OQS_Logo">
+            <Source>Embedded</Source>
+            <Value>Logo</Value>
+            <Sizing>FitProportional</Sizing>
+            <Top>0.15875cm</Top>
+            <Left>0.5789cm</Left>
+            <Height>2.39958cm</Height>
+            <Width>3.93509cm</Width>
+            <ZIndex>2</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Image>
+          <Chart Name="Chart5">
+            <ChartCategoryHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart5_CategoryGroup">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!wait_type.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!wait_type.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <Label>=Fields!wait_type.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartCategoryHierarchy>
+            <ChartSeriesHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Label>Total wait time</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartSeriesHierarchy>
+            <ChartData>
+              <ChartSeriesCollection>
+                <ChartSeries Name="Total_wait_time">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <Y>=Sum(Fields!Total_wait_time.Value)</Y>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                        <Label>#PERCENT</Label>
+                        <Visible>true</Visible>
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Type>Shape</Type>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+              </ChartSeriesCollection>
+            </ChartData>
+            <ChartAreas>
+              <ChartArea Name="Default">
+                <ChartCategoryAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartValueAxes>
+                <Style>
+                  <BackgroundColor>#00ffffff</BackgroundColor>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                </Style>
+              </ChartArea>
+            </ChartAreas>
+            <ChartLegends>
+              <ChartLegend Name="Default">
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>8pt</FontSize>
+                </Style>
+                <Position>RightCenter</Position>
+                <DockToChartArea>Default</DockToChartArea>
+                <DockOutsideChartArea>true</DockOutsideChartArea>
+                <ChartLegendTitle>
+                  <Caption />
+                  <Style>
+                    <FontSize>8pt</FontSize>
+                    <FontWeight>Bold</FontWeight>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </ChartLegendTitle>
+                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
+                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
+              </ChartLegend>
+            </ChartLegends>
+            <ChartTitles>
+              <ChartTitle Name="Default">
+                <Caption>Top 10 wait types in the last hour (benign waits filtered)</Caption>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>9pt</FontSize>
+                  <FontWeight>Normal</FontWeight>
+                  <TextAlign>Left</TextAlign>
+                  <VerticalAlign>Top</VerticalAlign>
+                  <Color>#a6a6a6</Color>
+                </Style>
+                <Position>TopLeft</Position>
+              </ChartTitle>
+            </ChartTitles>
+            <Palette>BrightPastel</Palette>
+            <ChartBorderSkin>
+              <Style>
+                <BackgroundColor>Gray</BackgroundColor>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <Color>White</Color>
+              </Style>
+            </ChartBorderSkin>
+            <ChartNoDataMessage Name="NoDataMessage">
+              <Caption>No Data Available</Caption>
+              <Style>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <FontWeight>Bold</FontWeight>
+                <TextAlign>General</TextAlign>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </ChartNoDataMessage>
+            <DataSetName>top10_ws_last_hour</DataSetName>
+            <Top>3.02252cm</Top>
+            <Left>0.5789cm</Left>
+            <Height>8.54542cm</Height>
+            <Width>15.96667cm</Width>
+            <ZIndex>3</ZIndex>
+            <Style>
+              <Border>
+                <Color>LightGrey</Color>
+                <Style>Solid</Style>
+              </Border>
+              <BackgroundColor>White</BackgroundColor>
+              <BackgroundGradientType>None</BackgroundGradientType>
+            </Style>
+          </Chart>
+          <Chart Name="Chart6">
+            <ChartCategoryHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart6_CategoryGroup">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!TimeDate.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!TimeDate.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <Label>=Fields!TimeDate.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartCategoryHierarchy>
+            <ChartSeriesHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart6_SeriesGroup">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!wait_type.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!wait_type.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <Label>=Fields!wait_type.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartSeriesHierarchy>
+            <ChartData>
+              <ChartSeriesCollection>
+                <ChartSeries Name="wait_time_ms">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <Y>=Sum(Fields!wait_time_ms.Value)</Y>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+              </ChartSeriesCollection>
+            </ChartData>
+            <ChartAreas>
+              <ChartArea Name="Default">
+                <ChartCategoryAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartValueAxes>
+                <Style>
+                  <BackgroundColor>#00ffffff</BackgroundColor>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                </Style>
+              </ChartArea>
+            </ChartAreas>
+            <ChartLegends>
+              <ChartLegend Name="Default">
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>8pt</FontSize>
+                </Style>
+                <Position>BottomCenter</Position>
+                <ChartLegendTitle>
+                  <Caption />
+                  <Style>
+                    <FontSize>8pt</FontSize>
+                    <FontWeight>Bold</FontWeight>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </ChartLegendTitle>
+                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
+                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
+              </ChartLegend>
+            </ChartLegends>
+            <ChartTitles>
+              <ChartTitle Name="Default">
+                <Caption>Top 3 wait types per interval in the last hour</Caption>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>9pt</FontSize>
+                  <FontWeight>Normal</FontWeight>
+                  <TextAlign>Left</TextAlign>
+                  <VerticalAlign>Top</VerticalAlign>
+                  <Color>#a6a6a6</Color>
+                </Style>
+                <Position>TopLeft</Position>
+              </ChartTitle>
+            </ChartTitles>
+            <Palette>BrightPastel</Palette>
+            <ChartBorderSkin>
+              <Style>
+                <BackgroundColor>Gray</BackgroundColor>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <Color>White</Color>
+              </Style>
+            </ChartBorderSkin>
+            <ChartNoDataMessage Name="NoDataMessage">
+              <Caption>No Data Available</Caption>
+              <Style>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <FontWeight>Bold</FontWeight>
+                <TextAlign>General</TextAlign>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </ChartNoDataMessage>
+            <DataSetName>top3_ws_per_interval_last_hour</DataSetName>
+            <Top>3.02252cm</Top>
+            <Left>16.72196cm</Left>
+            <Height>8.54542cm</Height>
+            <Width>20.8713cm</Width>
+            <ZIndex>4</ZIndex>
+            <Style>
+              <Border>
+                <Color>LightGrey</Color>
+                <Style>Solid</Style>
+              </Border>
+              <BackgroundColor>White</BackgroundColor>
+              <BackgroundGradientType>None</BackgroundGradientType>
+            </Style>
+          </Chart>
+          <Textbox Name="Textbox1">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>Wait Statistics Dashboard</Value>
+                    <Style>
+                      <FontSize>16pt</FontSize>
+                      <FontWeight>Bold</FontWeight>
+                      <Color>DimGray</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox1</rd:DefaultName>
+            <Top>1.2175cm</Top>
+            <Left>5.05037cm</Left>
+            <Height>0.86458cm</Height>
+            <Width>9.67021cm</Width>
+            <ZIndex>5</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
+          <Chart Name="Chart7">
+            <ChartCategoryHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart7_CategoryGroup">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!TimeDate.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!TimeDate.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <Label>=Fields!TimeDate.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartCategoryHierarchy>
+            <ChartSeriesHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Label>Total wait time</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartSeriesHierarchy>
+            <ChartData>
+              <ChartSeriesCollection>
+                <ChartSeries Name="Total_wait_time">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <Y>=Sum(Fields!Total_wait_time.Value)</Y>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Type>Line</Type>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+              </ChartSeriesCollection>
+              <ChartDerivedSeriesCollection>
+                <ChartDerivedSeries>
+                  <ChartSeries Name="DerivedSeries1">
+                    <Type>Line</Type>
+                    <Style>
+                      <Border>
+                        <Color>SeaGreen</Color>
+                        <Style>Dashed</Style>
+                        <Width>2pt</Width>
+                      </Border>
+                      <Color>SeaGreen</Color>
+                      <BackgroundGradientType>None</BackgroundGradientType>
+                      <BackgroundHatchType>None</BackgroundHatchType>
+                    </Style>
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                    <ChartEmptyPoints>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                    </ChartEmptyPoints>
+                    <ChartItemInLegend>
+                      <LegendText>Moving Average</LegendText>
+                    </ChartItemInLegend>
+                    <ChartAreaName>Default</ChartAreaName>
+                    <ValueAxisName>Primary</ValueAxisName>
+                    <CategoryAxisName>Primary</CategoryAxisName>
+                    <ChartSmartLabel>
+                      <CalloutLineColor>Black</CalloutLineColor>
+                      <MinMovingDistance>0pt</MinMovingDistance>
+                    </ChartSmartLabel>
+                  </ChartSeries>
+                  <SourceChartSeriesName>Total_wait_time</SourceChartSeriesName>
+                  <DerivedSeriesFormula>MovingAverage</DerivedSeriesFormula>
+                  <ChartFormulaParameters>
+                    <ChartFormulaParameter Name="Period">
+                      <Value>2</Value>
+                    </ChartFormulaParameter>
+                    <ChartFormulaParameter Name="StartFromFirst">
+                      <Value>True</Value>
+                    </ChartFormulaParameter>
+                  </ChartFormulaParameters>
+                </ChartDerivedSeries>
+              </ChartDerivedSeriesCollection>
+            </ChartData>
+            <ChartAreas>
+              <ChartArea Name="Default">
+                <ChartCategoryAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartValueAxes>
+                <Style>
+                  <BackgroundColor>#00ffffff</BackgroundColor>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                </Style>
+              </ChartArea>
+            </ChartAreas>
+            <ChartLegends>
+              <ChartLegend Name="Default">
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>8pt</FontSize>
+                </Style>
+                <Position>TopLeft</Position>
+                <ChartLegendTitle>
+                  <Caption />
+                  <Style>
+                    <FontSize>8pt</FontSize>
+                    <FontWeight>Bold</FontWeight>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </ChartLegendTitle>
+                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
+                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
+              </ChartLegend>
+            </ChartLegends>
+            <ChartTitles>
+              <ChartTitle Name="Default">
+                <Caption>Total wait time per interval in the last hour</Caption>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>9pt</FontSize>
+                  <FontWeight>Normal</FontWeight>
+                  <TextAlign>Left</TextAlign>
+                  <VerticalAlign>Top</VerticalAlign>
+                  <Color>#a6a6a6</Color>
+                </Style>
+                <Position>TopLeft</Position>
+              </ChartTitle>
+            </ChartTitles>
+            <Palette>BrightPastel</Palette>
+            <ChartBorderSkin>
+              <Style>
+                <BackgroundColor>Gray</BackgroundColor>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <Color>White</Color>
+              </Style>
+            </ChartBorderSkin>
+            <ChartNoDataMessage Name="NoDataMessage">
+              <Caption>No Data Available</Caption>
+              <Style>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <FontWeight>Bold</FontWeight>
+                <TextAlign>General</TextAlign>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </ChartNoDataMessage>
+            <DataSetName>total_wait_time_per_interval_last_hour</DataSetName>
+            <Top>11.74432cm</Top>
+            <Left>0.5789cm</Left>
+            <Height>8.54542cm</Height>
+            <Width>15.96667cm</Width>
+            <ZIndex>6</ZIndex>
+            <Style>
+              <Border>
+                <Color>LightGrey</Color>
+                <Style>Solid</Style>
+              </Border>
+              <BackgroundColor>White</BackgroundColor>
+              <BackgroundGradientType>None</BackgroundGradientType>
+            </Style>
+          </Chart>
+          <Chart Name="Chart8">
+            <ChartCategoryHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart7_CategoryGroup2">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!TimeDate.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!TimeDate.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <Label>=Fields!TimeDate.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartCategoryHierarchy>
+            <ChartSeriesHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Label>Waitings Tasks</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartSeriesHierarchy>
+            <ChartData>
+              <ChartSeriesCollection>
+                <ChartSeries Name="Waitings_Tasks">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <Y>=Sum(Fields!Waitings_Tasks.Value)</Y>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Type>Line</Type>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+              </ChartSeriesCollection>
+              <ChartDerivedSeriesCollection>
+                <ChartDerivedSeries>
+                  <ChartSeries Name="DerivedSeries1">
+                    <Type>Line</Type>
+                    <Style>
+                      <Border>
+                        <Color>SeaGreen</Color>
+                        <Style>Dashed</Style>
+                        <Width>2pt</Width>
+                      </Border>
+                      <Color>SeaGreen</Color>
+                    </Style>
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                    <ChartEmptyPoints>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                    </ChartEmptyPoints>
+                    <ChartItemInLegend>
+                      <LegendText>Moving Average</LegendText>
+                    </ChartItemInLegend>
+                    <ChartAreaName>Default</ChartAreaName>
+                    <ValueAxisName>Primary</ValueAxisName>
+                    <CategoryAxisName>Primary</CategoryAxisName>
+                    <ChartSmartLabel>
+                      <CalloutLineColor>Black</CalloutLineColor>
+                      <MinMovingDistance>0pt</MinMovingDistance>
+                    </ChartSmartLabel>
+                  </ChartSeries>
+                  <SourceChartSeriesName>Waitings_Tasks</SourceChartSeriesName>
+                  <DerivedSeriesFormula>MovingAverage</DerivedSeriesFormula>
+                  <ChartFormulaParameters>
+                    <ChartFormulaParameter Name="Period">
+                      <Value>2</Value>
+                    </ChartFormulaParameter>
+                    <ChartFormulaParameter Name="StartFromFirst">
+                      <Value>False</Value>
+                    </ChartFormulaParameter>
+                  </ChartFormulaParameters>
+                </ChartDerivedSeries>
+              </ChartDerivedSeriesCollection>
+            </ChartData>
+            <ChartAreas>
+              <ChartArea Name="Default">
+                <ChartCategoryAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <Border>
+                        <Color>Gainsboro</Color>
+                        <Style>None</Style>
+                      </Border>
+                      <FontSize>8pt</FontSize>
+                      <Color>#5c5c5c</Color>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption />
+                      <Style>
+                        <FontSize>9pt</FontSize>
+                        <Color>#5c5c5c</Color>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMajorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>None</Style>
+                        </Border>
+                      </Style>
+                    </ChartMajorTickMarks>
+                    <ChartMinorTickMarks>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartValueAxes>
+                <Style>
+                  <BackgroundColor>#00ffffff</BackgroundColor>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                </Style>
+              </ChartArea>
+            </ChartAreas>
+            <ChartLegends>
+              <ChartLegend Name="Default">
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>8pt</FontSize>
+                </Style>
+                <Position>TopLeft</Position>
+                <ChartLegendTitle>
+                  <Caption />
+                  <Style>
+                    <FontSize>8pt</FontSize>
+                    <FontWeight>Bold</FontWeight>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </ChartLegendTitle>
+                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
+                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
+              </ChartLegend>
+            </ChartLegends>
+            <ChartTitles>
+              <ChartTitle Name="Default">
+                <Caption>Total waiting tasks per interval in the last hour</Caption>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>9pt</FontSize>
+                  <FontWeight>Normal</FontWeight>
+                  <TextAlign>Left</TextAlign>
+                  <VerticalAlign>Top</VerticalAlign>
+                  <Color>#a6a6a6</Color>
+                </Style>
+                <Position>TopLeft</Position>
+              </ChartTitle>
+            </ChartTitles>
+            <Palette>BrightPastel</Palette>
+            <ChartBorderSkin>
+              <Style>
+                <BackgroundColor>Gray</BackgroundColor>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <Color>White</Color>
+              </Style>
+            </ChartBorderSkin>
+            <ChartNoDataMessage Name="NoDataMessage">
+              <Caption>No Data Available</Caption>
+              <Style>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <FontWeight>Bold</FontWeight>
+                <TextAlign>General</TextAlign>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </ChartNoDataMessage>
+            <DataSetName>total_wait_time_per_interval_last_hour</DataSetName>
+            <Top>11.74432cm</Top>
+            <Left>16.72196cm</Left>
+            <Height>8.54542cm</Height>
+            <Width>20.8713cm</Width>
+            <ZIndex>7</ZIndex>
+            <Style>
+              <Border>
+                <Color>LightGrey</Color>
+                <Style>Solid</Style>
+              </Border>
+              <BackgroundColor>White</BackgroundColor>
+              <BackgroundGradientType>None</BackgroundGradientType>
+            </Style>
+          </Chart>
+        </ReportItems>
+        <Height>8.311in</Height>
+        <Style>
+          <Border>
+            <Style>Solid</Style>
+          </Border>
+        </Style>
+      </Body>
+      <Width>15.54551in</Width>
+      <Page>
+        <PageHeight>29.7cm</PageHeight>
+        <PageWidth>21cm</PageWidth>
+        <LeftMargin>2cm</LeftMargin>
+        <RightMargin>2cm</RightMargin>
+        <TopMargin>2cm</TopMargin>
+        <BottomMargin>2cm</BottomMargin>
+        <ColumnSpacing>0.13cm</ColumnSpacing>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParametersLayout>
+    <GridLayoutDefinition>
+      <NumberOfColumns>4</NumberOfColumns>
+      <NumberOfRows>2</NumberOfRows>
+    </GridLayoutDefinition>
+  </ReportParametersLayout>
+  <EmbeddedImages>
+    <EmbeddedImage Name="sqlserver_logo">
+      <MIMEType>image/jpeg</MIMEType>
+      <ImageData>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</ImageData>
+    </EmbeddedImage>
+    <EmbeddedImage Name="Logo">
+      <MIMEType>image/png</MIMEType>
+      <ImageData>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</ImageData>
+    </EmbeddedImage>
+  </EmbeddedImages>
+  <rd:ReportUnitType>Cm</rd:ReportUnitType>
+  <rd:ReportID>8dade81f-cae1-40b2-bc47-f928f444fedc</rd:ReportID>
+</Report>
