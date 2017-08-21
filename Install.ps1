@@ -11,14 +11,18 @@ The SQL Server that you're connecting to.
 .PARAMETER Database
 Specifies the Database where OQS objects will be created
 
-.PARAMETER InstallationType
-Specifies the type of installation to be done. Classic (by default) or Centralised (will be available soon)
+.PARAMETER OQSMode
+Specifies the mode OQS should operate in. Classic (monitoring a single database) or Centralized (a separate OQS database to monitor multiple databases)
+
+.PARAMETER SchedulerType
+Specifies which type of scheduling of data collection should be used. Either "Service Broker" (Default) or "SQL Agent"
 
 .PARAMETER CertificateBackupPath
-Specifies the path where certificate backup will be saved. By default "C:\temp"
+Specifies the path where certificate backup will be temporarily saved. By default "C:\temp" (the file is deleted immediately after installation)
 
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
+        William Durkin (@sql_williamd)
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -40,14 +44,14 @@ License:
 https://github.com/OpenQueryStore/OpenQueryStore
 
 .EXAMPLE
-.\Install.ps1 -SqlInstance SQL2012 -Database ScooterStore -InstallationType Classic
+.\Install.ps1 -SqlInstance SQL2012 -Database ScooterStore -OQSMode "Classic" -SchedulerType "Service Broker" -CertificateBackupPath "C:\temp"
 
-Will install the Classic version on instance SQL2012 database named ScooterStore.
+Will install the Classic version on instance SQL2012 database named ScooterStore and use Service Broker for scheduling, storing the certificate in c:\temp.
 
 .EXAMPLE
-.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -InstallationType Classic -CertificateBackupPath "C:\temp"
+.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -OQSMode "Centralized" -SchedulerType "SQL Agent"
 
-Will install the Classic version on instance SQL2012 database named ScooterStore and use the folder "C:\temp" to save certificate backup.
+Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling.
 
 #>
 [CmdletBinding()]
@@ -56,135 +60,123 @@ param (
     [string]$SqlInstance,
     [parameter(Mandatory = $true)]
     [string]$Database,
-    [ValidateSet("Classic", "Centralised")]
-    [string]$InstallationType = "Classic",
+    [parameter(Mandatory = $true)]
+    [ValidateSet("classic", "centralized")]
+    [string]$OQSMode = "classic",
+    [parameter(Mandatory = $true)]
+    [ValidateSet("Service Broker", "SQL Agent")]
+    [string]$SchedulerType = "Service Broker",
     [string]$CertificateBackupPath = "C:\temp"
 )
-
-$path = "$HOME\Documents\OpenQueryStore"
-$qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
-$CertificateBackupFullPath = $CertificateBackupPath + "OpenQueryStore.CER"
-
-try {
+BEGIN {
+    $path = Get-Location
+    $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
+    $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.CER"
     $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+}
+PROCESS {    
+    
+    # Connect to instance
+    try {
+        $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
+    }
+    catch {
+        throw $_.Exception.Message
+    }
 
-    #Connect to instance
-    $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-
-    #As is today, we only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
+    # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
     if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
-        Write-Warning "We only support instances from SQL Server 2008 (v9.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Quitting"
+        Write-Error "We only support instances from SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
         return
     }
 
-    #Verify if database exist in the instance
+    # Verify if database exist in the instance
     if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-        Write-Error "Database $Database does not exists on instance $SqlInstance"
+        Write-Error "Database $Database does not exists on instance $SqlInstance. Installation cancelled."
         return
     }
 
-    #Check if the certificate backup location already has the certificate in it
-    $CertExists = Test-Path $CertificateBackupFullPath
-    if ($CertExists -eq $true) {
-        Write-Warning "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path or remove the file at that location. Quitting."
+    # If we are installing Service Broker for scheduling, we need to do housekeeping for the certificate
+    if ($InstallationType -eq "Service Broker") {
+
+        #Does the path specified even exist and is it accessible?
+        if (-not (Test-Path $CertificateBackupPath -PathType Container)) {
+            Write-Error "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible. Installation cancelled."
+            return
+        }
+
+        #Check if the certificate backup location already has the certificate in it
+        if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
+            Write-Error "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path or remove the file at that location. Installation cancelled."
+            return
+        }
+    }
+
+    # If 'qos' schema already exists, we assume that OQS is already installed
+    if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
+        Write-Warning "OpenQueryStore is already installed on database $database. If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
+        return
+    }
+    
+    # Load the installer files
+    $InstallOQSBase = Get-Content -Path "$path\install_open_query_store_base.sql" -Raw
+    $InstallOQSGatherStatistics = Get-Content -Path "$path\install_gather_statistics.sql" -Raw
+    $InstallServiceBroker = Get-Content -Path "$path\install_service_broker.sql" -Raw
+    $InstallServiceBrokerCertificate = Get-Content -Path "$path\install_service_broker_certificate.sql" -Raw
+    $InstallSQLAgentJob = Get-Content -Path "$path\install_sql_agent_job.sql" -Raw
+
+    if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq ""){
+        Write-Warning "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
         return
     }
 
+    # Replace placeholders
+    $InstallOQSBase = $InstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
+    $InstallOQSBase = $InstallOQSBase -replace "{OQSMode}", "[$OQSMode]"
+    $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
+    $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "Enter A File Location accessible by the SQL Server Service Account", "$CertificateBackupFullPath"
+    $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
 
-    #Verify if oqs schema exists
-    $AlreadyExists = $instance.ConnectionContext.ExecuteScalar($qOQSExists)
+    # Ready to install!
+    Write-Warning "Installing OQS ($OQSMode & $InstallationType) on $SqlInstance in $database"
+    
+    Write-Output "Installing OQS base objects"
+    $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
+    Write-Output "Installing OQS gather_statistics stored procedure"
+    $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
 
-    #if 'qos' schema already exists - We assume that OQS is already installed
-    if ($AlreadyExists -eq $true) {
-        Write-Warning "OpenQueryStore is already installed on database $database. If you want to reinstall please run the Unistall.sql and then re-run this installer. Quitting."
-        return
-    }
-    else {
-        Write-Output "We will install OQS on database $database"
-    }
-
-    switch ($InstallationType) {
-        "Classic" {
-            $qInstallOQSClassic = Get-Content -Path "$path\InstallOQSClassic.sql" -Raw
-            $qInstallOQSServiceBrokerCertificate = Get-Content -Path "$path\InstallOQSServiceBrokerCertificate.sql" -Raw
-            $qInstallOQSClassicStartupProcedure = Get-Content -Path "$path\InstallOQSClassicStartupProcedure.sql" -Raw
-                                        
-            #Replace some values
-            $qInstallOQSClassic = $qInstallOQSClassic -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
-
-            $qInstallOQSServiceBrokerCertificate = $qInstallOQSServiceBrokerCertificate -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
-            $qInstallOQSServiceBrokerCertificate = $qInstallOQSServiceBrokerCertificate -replace "Enter A File Location accessible by the SQL Server Service Account", "$CertificateBackupFullPath"
-
-            $qInstallOQSClassicStartupProcedure = $qInstallOQSClassicStartupProcedure -replace "{DatabaseWhereOQSIsRunning}", "[$Database]"
-
-            Write-Output "Running InstallOQSClassic.sql"
-            $null = $instance.ConnectionContext.ExecuteNonQuery($qInstallOQSClassic)
+    switch ($SchedulerType) {
+        "Service Broker" {
+            Write-Output "Installing OQS Service Broker objects"
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
 
             #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
-            if ($instance.Databases["master"].Certificates | Where-Object Name -eq 'OpenQueryStore') {
-                Write-Verbose "OpenQueryStore certificate already exists"
+            if (-not ($instance.Databases["master"].Certificates | Where-Object Name -eq 'open_query_store')) {
+                Write-Output "Installing OQS Service Broker certificate"
+                $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
             }
-            else {
-                Write-Output "Running InstallOQSServiceBrokerCertificate.sql"
-                $null = $instance.ConnectionContext.ExecuteNonQuery($qInstallOQSServiceBrokerCertificate)
-            }
-
-            Write-Output "Running InstallOQSClassicStartupProcedure.sql"
-            $null = $instance.ConnectionContext.ExecuteNonQuery($qInstallOQSClassicStartupProcedure)
+            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[OpenQueryStoreStartup]'."       
         }
 
-        "Centralised" {
-            Write-Output "This installation type is not available yet."
+        "SQL Agent" {
+            Write-Output "Installing OQS SQL Agent scheduling"
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallSQLAgentJob)
+            Write-Warning "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."                   
         }
     }
-
-    #Copy rdl to $mydocuments\SQL Server Management Studio\Custom Reports
-    $customReportsPath = [environment]::GetFolderPath([environment+SpecialFolder]::MyDocuments) + "\SQL Server Management Studio\Custom Reports"
-    if ((Test-Path $customReportsPath) -eq $false ) { 
-        $null = New-Item -Path $customReportsPath -Force -ItemType Directory
-    }
-
-    Write-Output "Copying custom report (OpenQueryStoreDashboard.rdl) to $customReportsPath"
-
-    $null = Copy-Item -Path "$path\OpenQueryStoreDashboard.rdl" -Destination $customReportsPath -ErrorAction SilentlyContinue
-
-    if (Test-Path -Path "$path\OpenQueryStoreDashboard.rdl") {
-        Write-Output "OpenQueryStoreDashboard.rdl copied with success! You need to go to SSMS and import the report by using - Right click on database -> Reports -> Custom Reports"
-    }
-    else {
-        Write-Output "Unable to copy report to path $customReportsPath"
-    }
-
-    $null = Copy-Item -Path "$path\OpenQueryStoreWaitStatsDashboard.rdl" -Destination $customReportsPath -ErrorAction SilentlyContinue
+    if ($OQSMode -eq "centralized")
+     {
+            Write-Warning "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases."
+        }
     
-    if (Test-Path -Path "$path\OpenQueryStoreWaitStatsDashboard.rdl") {
-        Write-Output "OpenQueryStoreWaitStatsDashboard.rdl copied with success! You need to go to SSMS and import the report by using - Right click on database -> Reports -> Custom Reports"
-    }
-    else {
-        Write-Output "Unable to copy report to path $customReportsPath"
-    }
+    Write-Warning "To avoid data collection causing resource issues, OQS data capture is deactivated, please update the value in column 'collection_active' in table oqs.collection_metadata."
     
-    #Ask if user want to start collecting data
-    Write-Output "Installation complete!"
+    Write-Warning "Open Query Store installation complete."
 
-    $title = "Start collecting data"
-    $message = "Do you want to start collecting data for database '$Database'? (Y/N)"
-    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Start collecting"
-    $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "continue"
-    $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-    $result = $host.ui.PromptForChoice($title, $message, $options, 0)
-    #no
-    if ($result -eq 1) {
-        Write-Warning "You have decided not to start collecting data. To start collecting data you need to run the following instruction manually 'EXECUTE [master].[dbo].[OpenQueryStoreStartup]'."
-    }
-    else {
-        $null = $instance.ConnectionContext.ExecuteNonQuery("EXECUTE [master].[dbo].[OpenQueryStoreStartup]")
+END {
+    $instance.ConnectionContext.Disconnect()
 
-        Write-Output "OpenQueryStore started collecting data"
-    }
+    #Clean up the certificate if it was created
+    if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
+    Remove-Item -Path $CertificateBackupFullPath -Force   }
 }
-catch {
-    Write-Error $_.Exception.Message
-}
-
-$instance.ConnectionContext.Disconnect()

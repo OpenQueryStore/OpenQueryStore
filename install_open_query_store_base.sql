@@ -23,7 +23,7 @@ License:
 
 **********************************************************************************************/
 
-USE {DatabaseWhereOQSIsRunning}
+USE [{DatabaseWhereOQSIsRunning}]
 GO
 
 SET ANSI_NULLS ON;
@@ -49,16 +49,18 @@ CREATE TABLE [oqs].[collection_metadata]
         [collection_interval] bigint         NOT NULL, -- The interval for looped processing (in seconds)
         [oqs_mode]            nvarchar (20)  NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
         [oqs_classic_db]      nvarchar (128) NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
-        CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' ))
+        CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
+        [collection_active]   bit            NOT NULL  -- Should OQS be collecting data or not
     );
 GO
 
 INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [collection_interval],
                                             [oqs_mode],
-                                            [oqs_classic_db]
+                                            [oqs_classic_db],
+                                            [collection_active]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , {OQSMode},{DatabaseWhereOQSIsRunning});
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0);
 GO
 
 CREATE TABLE [oqs].[activity_log]
@@ -272,10 +274,10 @@ GO
 -- Create the OQS Purge OQS Stored Procedure
 CREATE PROCEDURE [oqs].[purge_oqs]
 AS
-    SET NOCOUNT ON
-GO
-
 BEGIN
+    
+    SET NOCOUNT ON
+
     TRUNCATE TABLE [oqs].[activity_log];
     TRUNCATE TABLE [oqs].[intervals];
     TRUNCATE TABLE [oqs].[plan_dbid];
