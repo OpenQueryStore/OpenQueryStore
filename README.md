@@ -14,11 +14,11 @@
 [forks]:https://github.com/OpenQueryStore/OpenQueryStore/network
 [issues]:https://github.com/OpenQueryStore/OpenQueryStore/issues
 
-## Please be aware that the code is production ready, but should be tested before deploying in a  full production environment.
+## This is a project in the early stages. Please be aware that the code is production ready, but should be tested before deploying in a  full production environment.
 
-## Currently supported SQL Server versions: SQL 2008 - 2014 (all editions)
+**Currently supported SQL Server versions: SQL 2008 - 2014**
 
-## Currently supported SQL Server Management Studio versions: 16.x and 17.x
+**Currently supported SQL Server Management Studio versions: 16.x and 17.x**
 
 OpenQueryStore (OQS) is a collection of scripts that add Query Store like functionality to pre-SQL Server 2016 Instances!
 
