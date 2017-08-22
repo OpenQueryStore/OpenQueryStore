@@ -1,4 +1,4 @@
-# OpenQueryStore
+# OpenQueryStore: [Direct Download](https://github.com/OpenQueryStore/OpenQueryStore/releases/latest)
 [![licence badge]][licence]
 [![stars badge]][stars]
 [![forks badge]][forks]
