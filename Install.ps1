@@ -114,7 +114,7 @@ PROCESS {
 
     # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
-        Write-Warning "OpenQueryStore is already installed on database $database. If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
+        Write-Error "OpenQueryStore is already installed on database $database. If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
         return
     }
     
@@ -126,7 +126,7 @@ PROCESS {
     $InstallSQLAgentJob = Get-Content -Path "$path\install_sql_agent_job.sql" -Raw
 
     if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
-        Write-Warning "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
+        Write-Error "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
         return
     }
 
@@ -140,44 +140,44 @@ PROCESS {
     $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "$Database"
 
     # Ready to install!
-    Write-Warning "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
+    Write-Host "INFO: Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database" -ForegroundColor "Green"
     
-    Write-Output "Installing OQS base objects"
+    Write-Host "INFO: Installing OQS base objects"
     $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
-    Write-Output "Installing OQS gather_statistics stored procedure"
+    Write-Host "INFO: Installing OQS gather_statistics stored procedure"
     $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
 
     switch ($SchedulerType) {
         "Service Broker" {
-            Write-Output "Installing OQS Service Broker objects"
+            Write-Host "INFO: Installing OQS Service Broker objects"
             $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
 
             #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
             if (-not ($instance.Databases["master"].Certificates | Where-Object Name -eq 'open_query_store')) {
-                Write-Output "Installing OQS Service Broker certificate"
+                Write-Host "INFO: Installing OQS Service Broker certificate"
                 $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
             }
-            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[dbo.open_query_store_startup]'."       
+            Write-Host "INFO: OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[dbo.open_query_store_startup]'." -ForegroundColor "Yellow"
         }
 
         "SQL Agent" {
             Write-Output "Installing OQS SQL Agent scheduling"
             $null = $instance.ConnectionContext.ExecuteNonQuery($InstallSQLAgentJob)
-            Write-Warning "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."                   
+            Write-Host "INFO: OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection." -ForegroundColor "Yellow"
         }
     }
     if ($OQSMode -eq "centralized") {
-        Write-Warning "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases."
+        Write-Host "INFO: Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." -ForegroundColor "Yellow"
     }
     
-    Write-Warning "To avoid data collection causing resource issues, OQS data capture is deactivated. "
-    Write-Warning "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
+    Write-Host "INFO: To avoid data collection causing resource issues, OQS data capture is deactivated. " -ForegroundColor "Yellow"
+    Write-Host "INFO: Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" -ForegroundColor "Yellow"
     
     if ($SchedulerType -eq "Service Broker") {
-        Write-Warning "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time."
+        Write-Host "INFO: Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." -ForegroundColor "Yellow"
     }
         
-    Write-Warning "Open Query Store installation complete."
+    Write-Host "INFO: Open Query Store installation complete." -ForegroundColor "Green"
 }
 END {
     $instance.ConnectionContext.Disconnect()
