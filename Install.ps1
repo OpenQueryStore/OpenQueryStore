@@ -157,7 +157,7 @@ PROCESS {
                 Write-Output "Installing OQS Service Broker certificate"
                 $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
             }
-            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[OpenQueryStoreStartup]'."       
+            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[dbo.open_query_store_startup]'."       
         }
 
         "SQL Agent" {
