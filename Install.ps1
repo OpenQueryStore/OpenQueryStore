@@ -112,7 +112,7 @@ PROCESS {
         }
     }
 
-    # If 'qos' schema already exists, we assume that OQS is already installed
+    # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
         Write-Warning "OpenQueryStore is already installed on database $database. If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
         return
@@ -157,7 +157,7 @@ PROCESS {
                 Write-Output "Installing OQS Service Broker certificate"
                 $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
             }
-            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[OpenQueryStoreStartup]'."       
+            Write-Warning "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[dbo.open_query_store_startup]'."       
         }
 
         "SQL Agent" {
