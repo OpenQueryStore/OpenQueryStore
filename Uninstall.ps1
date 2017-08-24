@@ -34,14 +34,9 @@ License:
 https://github.com/OpenQueryStore/OpenQueryStore
 
 .EXAMPLE
-.\Install.ps1 -SqlInstance SQL2012 -Database ScooterStore -OQSMode "Classic" -SchedulerType "Service Broker" -CertificateBackupPath "C:\temp"
+.\Uninstall.ps1 -SqlInstance SQL2012 -Database ScooterStore
 
-Will install the Classic version on instance SQL2012 database named ScooterStore and use Service Broker for scheduling, storing the certificate in c:\temp.
-
-.EXAMPLE
-.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -OQSMode "Centralized" -SchedulerType "SQL Agent"
-
-Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling.
+Will uninstall OQS on instance SQL2012 database named ScooterStore
 
 #>
 [CmdletBinding()]

@@ -150,8 +150,15 @@ PROCESS {
     switch ($SchedulerType) {
         "Service Broker" {
             Write-Host "INFO: Installing OQS Service Broker objects"
-            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
 
+            try {
+                $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
+            }
+            catch {
+                throw $_.Exception.Message
+                Write-Error "Failed to install OQS Service Broker. Please run Uninstall.ps1 to remove partially installed OQS objects."
+            }
+            
             #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
             if (-not ($instance.Databases["master"].Certificates | Where-Object Name -eq 'open_query_store')) {
                 Write-Host "INFO: Installing OQS Service Broker certificate"
