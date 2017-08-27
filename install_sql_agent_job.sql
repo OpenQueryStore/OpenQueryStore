@@ -43,14 +43,14 @@ IF NOT EXISTS (   SELECT [name]
     END;
 
 DECLARE @jobId binary (16);
-EXEC @ReturnCode = [msdb].[dbo].[sp_add_job] @job_name = N'Open Query Store - Execute oqs.gather_statistics',
+EXEC @ReturnCode = [msdb].[dbo].[sp_add_job] @job_name = N'Open Query Store - Data Collection',
                                              @enabled = 1,
                                              @notify_level_eventlog = 0,
                                              @notify_level_email = 0,
                                              @notify_level_netsend = 0,
                                              @notify_level_page = 0,
                                              @delete_level = 0,
-                                             @description = N'Executes the data collection stored procedure for Open Query Store running in "centralized" mode.',
+                                             @description = N'Executes the data collection stored procedure for Open Query Store running using "SQL Agent" scheduling.',
                                              @category_name = N'Open Query Store',
                                              @owner_login_name = N'sa',
                                              @job_id = @jobId OUTPUT;

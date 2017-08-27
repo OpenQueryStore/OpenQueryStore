@@ -55,7 +55,7 @@ GO
 -- Change the file location to a valid value
 -- This needs to be a full folder and filename
 -- e.g. C:\Temp\OpenQueryStore.CER
-BACKUP CERTIFICATE [open_query_store] TO FILE = 'Enter A File Location accessible by the SQL Server Service Account';
+BACKUP CERTIFICATE [open_query_store] TO FILE = '{Enter A File Location accessible by the SQL Server Service Account}';
 GO
 
 
@@ -66,7 +66,7 @@ USE [master]
 GO
 
 -- Enter the file location previously used to create the certificate
-CREATE CERTIFICATE [open_query_store] FROM FILE = 'Enter A File Location accessible by the SQL Server Service Account';
+CREATE CERTIFICATE [open_query_store] FROM FILE = '{Enter A File Location accessible by the SQL Server Service Account}';
 GO
 
 -- Create the login using the certificate

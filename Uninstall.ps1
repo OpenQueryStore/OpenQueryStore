@@ -50,6 +50,7 @@ BEGIN {
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
     $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+    Clear-Host
 }
 PROCESS {    
     
@@ -63,32 +64,57 @@ PROCESS {
 
     # Verify if database exist in the instance
     if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-        Write-Error "Database $Database does not exists on instance $SqlInstance. Uninstallation cancelled."
+        Write-Warning "Database [$Database] does not exists on instance '$SqlInstance'. Uninstallation cancelled."
         return
     }
 
-    # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
-    if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
-        Write-Warning "OpenQueryStore not present in database $database, no action required. Uninstallation cancelled."
-        return
+    try {
+        Write-Host "INFO: Attempting to identify installation of OQS in database [$database] on instance '$SqlInstance'"
+
+        # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
+        if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
+            Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
+            return
+        }
+        else {
+            Write-Host "INFO: OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
+        }
+    }
+    catch {
+        throw $_.Exception.Message
     }
     
-    # Load the installer files
-    $UninstallOQSBase = Get-Content -Path "$path\uninstall_open_query_store.sql" -Raw
-    
-    if ($UninstallOQSBase -eq "") {
-        Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-        return
+    # Load the uninstaller files
+    try {
+        Write-Host "INFO: Loading uninstall routine from $path"
+
+        $UninstallOQSBase = Get-Content -Path "$path\uninstall_open_query_store.sql" -Raw
+     
+        if ($UninstallOQSBase -eq "") {
+            Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
+            return
+        }
+
+        # Replace placeholders
+        $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+
+        Write-Host "INFO: OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+    }
+    catch {
+        throw $_.Exception.Message
     }
 
-    # Replace placeholders
-    $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+    try {
+        # Perform the uninstall
+        Write-Host "INFO: Uninstalling OQS in [$database] on instance '$SqlInstance'"
 
-    # Ready to install!
-    Write-Warning "Uninstalling OQS on $SqlInstance in $database"
-    $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
-            
-    Write-Warning "Open Query Store uninstallation complete."
+        $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+        
+        Write-Host "INFO: Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" -ForegroundColor "Green"
+    }
+    catch {
+        throw $_.Exception.Message
+    }
 }
 END {
     $instance.ConnectionContext.Disconnect()
