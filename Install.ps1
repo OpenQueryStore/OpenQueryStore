@@ -86,7 +86,7 @@ PROCESS {
     }
 
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
-    if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 14) {
+    if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
         Write-Warning "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
         return
     }
