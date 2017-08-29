@@ -123,11 +123,11 @@ PROCESS {
     try {
         Write-Host "INFO: Loading install routine from $path"
 
-        $InstallOQSBase = Get-Content -Path "$path\install_open_query_store_base.sql" -Raw
-        $InstallOQSGatherStatistics = Get-Content -Path "$path\install_gather_statistics.sql" -Raw
-        $InstallServiceBroker = Get-Content -Path "$path\install_service_broker.sql" -Raw
-        $InstallServiceBrokerCertificate = Get-Content -Path "$path\install_service_broker_certificate.sql" -Raw
-        $InstallSQLAgentJob = Get-Content -Path "$path\install_sql_agent_job.sql" -Raw
+        $InstallOQSBase = Get-Content -Path "$path\setup\install_open_query_store_base.sql" -Raw
+        $InstallOQSGatherStatistics = Get-Content -Path "$path\setup\install_gather_statistics.sql" -Raw
+        $InstallServiceBroker = Get-Content -Path "$path\setup\install_service_broker.sql" -Raw
+        $InstallServiceBrokerCertificate = Get-Content -Path "$path\setup\install_service_broker_certificate.sql" -Raw
+        $InstallSQLAgentJob = Get-Content -Path "$path\setup\install_sql_agent_job.sql" -Raw
      
         if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
             Write-Warning "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
@@ -191,7 +191,7 @@ PROCESS {
                     Write-Warning "Failed to install OQS Service Broker. Please run Uninstall.ps1 to remove partially installed OQS objects."
                 }
             }
-            Write-Host "INFO: OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[dbo.open_query_store_startup]'." -ForegroundColor "Yellow"
+            Write-Host "INFO: OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
         }
 
         "SQL Agent" {

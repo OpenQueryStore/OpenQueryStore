@@ -88,7 +88,7 @@ PROCESS {
     try {
         Write-Host "INFO: Loading uninstall routine from $path"
 
-        $UninstallOQSBase = Get-Content -Path "$path\uninstall_open_query_store.sql" -Raw
+        $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
      
         if ($UninstallOQSBase -eq "") {
             Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
