@@ -113,6 +113,12 @@ PROCESS {
         }
     }
 
+    # SQL Agent mode requires SQL Agent to be present. Express Edition doesn't have that, so we have to stop installation if that is the case.
+    if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
+        Write-Warning "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available). Installation cancelled."
+        return
+    }
+
     # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
         Write-Warning -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
