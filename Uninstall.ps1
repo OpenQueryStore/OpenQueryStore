@@ -62,20 +62,20 @@ BEGIN {
 }
 PROCESS {    
     
-   # Connect to instance
-   if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
-    try {
-        $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-        # Checking if we have actually connected to the instance or not 
-        if ($null -eq $instance.Version) {
-            Write-Warning "Failed to connect to $SqlInstance - Quitting"
-            return
+    # Connect to instance
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
+        try {
+            $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
+            # Checking if we have actually connected to the instance or not 
+            if ($null -eq $instance.Version) {
+                Write-Warning "Failed to connect to $SqlInstance - Quitting"
+                return
+            }
+        }
+        catch {
+            throw $_
         }
     }
-    catch {
-        throw $_
-    }
-}
 
     # Verify if database exist in the instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
@@ -86,16 +86,18 @@ PROCESS {
     }
 
     try {
-        Write-Host "INFO: Attempting to identify installation of OQS in database [$database] on instance '$SqlInstance'"
+       
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
+            # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
+            if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
+                Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
+                return
+            }
+            else {
+                Write-Verbose "OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
+            }
+        }
 
-        # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
-        if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
-            Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
-            return
-        }
-        else {
-            Write-Host "INFO: OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
-        }
     }
     catch {
         throw $_.Exception.Message
