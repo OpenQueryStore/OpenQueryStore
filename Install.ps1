@@ -212,90 +212,90 @@ PROCESS {
     }
 
 
-     # Ready to install!
-     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
+    # Ready to install!
+    Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
      
-        # Base object creation
-        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Base Query")) {
-            try {
-                Write-Verbose "Installing OQS base objects"
-                $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
-                Write-Verbose "Base Query installed in $database on $SqlInstance"
-            }
-            catch {
-                throw $_.Exception.Message
-            }
+    # Base object creation
+    if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Base Query")) {
+        try {
+            Write-Verbose "Installing OQS base objects"
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
+            Write-Verbose "Base Query installed in $database on $SqlInstance"
         }
-        # Gather statistics stored procedure creation
-        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Gather Statistics Query")) {
-            try {
-                Write-Verbose "Installing OQS gather_statistics stored procedure"
-                $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
-                Write-Verbose "OQS Gather statistics query run on $database in $SqlInstance"
-            }
-            catch {
-                throw $_.Exception.Message
-            }
+        catch {
+            throw $_.Exception.Message
         }
-        switch ($SchedulerType) {
-            "Service Broker" {
-                if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Service Broker Query")) {
+    }
+    # Gather statistics stored procedure creation
+    if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Gather Statistics Query")) {
+        try {
+            Write-Verbose "Installing OQS gather_statistics stored procedure"
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
+            Write-Verbose "OQS Gather statistics query run on $database in $SqlInstance"
+        }
+        catch {
+            throw $_.Exception.Message
+        }
+    }
+    switch ($SchedulerType) {
+        "Service Broker" {
+            if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Service Broker Query")) {
+                try {
+                    Write-Verbose "Installing OQS Service Broker objects"
+                    $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
+                    Write-Verbose "Service Borker Query run on $Database in $SqlInstance"
+                }
+                catch {
+                    throw $_.Exception.Message
+                }
+            }
+            #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
+            if (-not ($instance.Databases["master"].Certificates | Where-Object Name -eq 'open_query_store')) {
+                Write-Verbose "Installing OQS Service Broker certificate"
+                if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Service Broker Certificate")) {
                     try {
-                        Write-Verbose "Installing OQS Service Broker objects"
-                        $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBroker)
-                        Write-Verbose "Service Borker Query run on $Database in $SqlInstance"
+                        $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
                     }
                     catch {
                         throw $_.Exception.Message
+                        Write-Warning "Failed to install OQS Service Broker. Please run Uninstall.ps1 to remove partially installed OQS objects."
                     }
                 }
-                #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
-                if (-not ($instance.Databases["master"].Certificates | Where-Object Name -eq 'open_query_store')) {
-                    Write-Verbose "Installing OQS Service Broker certificate"
-                    if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Service Broker Certificate")) {
-                        try {
-                            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
-                        }
-                        catch {
-                            throw $_.Exception.Message
-                            Write-Warning "Failed to install OQS Service Broker. Please run Uninstall.ps1 to remove partially installed OQS objects."
-                        }
-                    }
-                }
-                Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
             }
+            Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
+        }
     
-            "SQL Agent" {
-                if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Agent Job Query")) {
-                    try {
-                        Write-Verbose "Installing OQS SQL Agent scheduling"
-                        $null = $instance.ConnectionContext.ExecuteNonQuery($InstallSQLAgentJob)
-                        Write-Verbose "OQS Agent Job query run on $database in $SqlInstance"
-                    }
-                    catch {
-                        throw $_.Exception.Message
-                    }
+        "SQL Agent" {
+            if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Agent Job Query")) {
+                try {
+                    Write-Verbose "Installing OQS SQL Agent scheduling"
+                    $null = $instance.ConnectionContext.ExecuteNonQuery($InstallSQLAgentJob)
+                    Write-Verbose "OQS Agent Job query run on $database in $SqlInstance"
                 }
-                Write-Output "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."
+                catch {
+                    throw $_.Exception.Message
+                }
             }
+            Write-Output "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."
         }
     }
-    END {
-        if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
-            $instance.ConnectionContext.Disconnect()
-            Write-Verbose "Disconnecting from $SqlInstance"
-        }
+}
+END {
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
+        $instance.ConnectionContext.Disconnect()
+        Write-Verbose "Disconnecting from $SqlInstance"
+    }
         
-        if ($OQSMode -eq "centralized") {
-            Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
-        }
+    if ($OQSMode -eq "centralized") {
+        Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
+    }
         
-        Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated. "
-        Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
+    Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated. "
+    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
         
-        if ($SchedulerType -eq "Service Broker") {
-            Write-Output "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." 
-        }
+    if ($SchedulerType -eq "Service Broker") {
+        Write-Output "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." 
+    }
             
-        Write-Output "Open Query Store installation successfully completed."
-    }
+    Write-Output "Open Query Store installation successfully completed."
+}
