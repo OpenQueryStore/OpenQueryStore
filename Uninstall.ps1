@@ -62,13 +62,20 @@ BEGIN {
 }
 PROCESS {    
     
-    # Connect to instance
+   # Connect to instance
+   if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
     try {
         $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
+        # Checking if we have actually connected to the instance or not 
+        if ($null -eq $instance.Version) {
+            Write-Warning "Failed to connect to $SqlInstance - Quitting"
+            return
+        }
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
+}
 
     # Verify if database exist in the instance
     if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
