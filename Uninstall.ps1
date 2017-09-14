@@ -125,15 +125,14 @@ PROCESS {
     }
 
     try {
-        # Perform the uninstall
-        Write-Host "INFO: Uninstalling OQS in [$database] on instance '$SqlInstance'"
-
-        $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
-        
-        Write-Host "INFO: Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" -ForegroundColor "Green"
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "UnInstalling Base Query")) {
+            # Perform the uninstall
+            $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+        }
+        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" -ForegroundColor "Green"
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
 }
 END {
