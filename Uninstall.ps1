@@ -100,20 +100,20 @@ PROCESS {
 
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
     
     # Load the uninstaller files
     try {
-        Write-Host "INFO: Loading uninstall routine from $path"
-
-        $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
+        Write-Verbose "Loading uninstall routine from $path"
+        if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store.sql", "Loading uninstall SQL Query from")) {
+            $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
      
-        if ($UninstallOQSBase -eq "") {
-            Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-            return
+            if ($UninstallOQSBase -eq "") {
+                Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
+                return
+            }
         }
-
         # Replace placeholders
         $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
 
