@@ -54,7 +54,7 @@ Will install the Classic version on instance SQL2012 database named ScooterStore
 Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling.
 
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
