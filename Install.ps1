@@ -86,11 +86,19 @@ BEGIN {
 PROCESS {    
     
     # Connect to instance
-    try {
-        $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-    }
-    catch {
-        throw $_.Exception.Message
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
+        try {
+            $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
+            Write-Verbose "Connecting via SMO to $SqlInstance"
+            # Checking if we have actually connected to the instance or not 
+            if ($null -eq $instance.Version) {
+                Write-Warning "Failed to connect to $SqlInstance - Quitting"
+                return
+            }
+        }
+        catch {
+            throw $_.Exception.Message
+        }
     }
 
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
