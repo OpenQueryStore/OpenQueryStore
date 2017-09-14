@@ -129,7 +129,7 @@ PROCESS {
             # Perform the uninstall
             $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
         }
-        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" -ForegroundColor "Green"
+        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
     }
     catch {
         throw $_
