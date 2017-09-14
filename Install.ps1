@@ -278,7 +278,24 @@ PROCESS {
                 }
                 Write-Output "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."
             }
-        }}
-END {
-    $instance.ConnectionContext.Disconnect()
-}
+        }
+    }
+    END {
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
+            $instance.ConnectionContext.Disconnect()
+            Write-Verbose "Disconnecting from $SqlInstance"
+        }
+        
+        if ($OQSMode -eq "centralized") {
+            Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
+        }
+        
+        Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated. "
+        Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
+        
+        if ($SchedulerType -eq "Service Broker") {
+            Write-Output "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." 
+        }
+            
+        Write-Output "Open Query Store installation successfully completed."
+    }
