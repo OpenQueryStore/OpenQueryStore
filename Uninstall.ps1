@@ -114,13 +114,14 @@ PROCESS {
                 return
             }
         }
-        # Replace placeholders
-        $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
-
-        Write-Host "INFO: OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+        if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {
+            # Replace placeholders
+            $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        Write-Versbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
 
     try {
