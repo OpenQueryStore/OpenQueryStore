@@ -188,7 +188,7 @@ USE [msdb];
 GO
 IF EXISTS (   SELECT *
               FROM   [dbo].[sysjobs] AS [S]
-              WHERE  [S].[name] = 'Open Query Store - Execute oqs.gather_statistics'
+              WHERE  [S].[name] = 'Open Query Store - Data Collection'
           )
     BEGIN
         EXECUTE [dbo].[sp_delete_job] @job_name = 'Open Query Store - Execute oqs.gather_statistics',
@@ -196,6 +196,15 @@ IF EXISTS (   SELECT *
                                       @delete_unused_schedule = 1;
     END;
 
+IF EXISTS (   SELECT [name]
+                  FROM   [msdb].[dbo].[syscategories]
+                  WHERE  [name] = N'Open Query Store'
+                         AND [category_class] = 1
+              )
+    BEGIN
+        EXEC  [msdb].[dbo].[sp_delete_category] @class = N'JOB', @name = N'Open Query Store';
+    END;
+    
 USE [master];
 GO
 
