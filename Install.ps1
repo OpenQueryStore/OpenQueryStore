@@ -212,27 +212,31 @@ PROCESS {
     }
 
 
-    # Ready to install!
-    Write-Host "INFO: Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
- 
-    # Base object creation
-    try {
-        Write-Host "INFO: Installing OQS base objects"
-        $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
-    }
-    catch {
-        throw $_.Exception.Message
-    }
-    
-    # Gather statistics stored procedure creation
-    try {
-        Write-Host "INFO: Installing OQS gather_statistics stored procedure"
-        $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
-    }
-    catch {
-        throw $_.Exception.Message
-    }
-    
+     # Ready to install!
+     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
+     
+        # Base object creation
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Base Query")) {
+            try {
+                Write-Verbose "Installing OQS base objects"
+                $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
+                Write-Verbose "Base Query installed in $database on $SqlInstance"
+            }
+            catch {
+                throw $_.Exception.Message
+            }
+        }
+        # Gather statistics stored procedure creation
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Gather Statistics Query")) {
+            try {
+                Write-Verbose "Installing OQS gather_statistics stored procedure"
+                $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
+                Write-Verbose "OQS Gather statistics query run on $database in $SqlInstance"
+            }
+            catch {
+                throw $_.Exception.Message
+            }
+        }
     switch ($SchedulerType) {
         "Service Broker" {
             try {
