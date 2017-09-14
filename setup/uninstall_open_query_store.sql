@@ -25,7 +25,7 @@ License:
 
 
 -- Connect to the database where OQS Classic has been installed
-USE {DatabaseWhereOQSIsRunning}
+USE [{DatabaseWhereOQSIsRunning}]
 GO
 
 -- Now perform the nuke process

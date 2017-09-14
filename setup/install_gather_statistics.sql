@@ -23,7 +23,7 @@ License:
 
 **********************************************************************************************/
 
-USE {DatabaseWhereOQSIsRunning}
+USE [{DatabaseWhereOQSIsRunning}]
 GO
 
 SET ANSI_NULLS ON;
