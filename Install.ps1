@@ -72,8 +72,16 @@ BEGIN {
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
-    $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
-    Clear-Host
+    if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
+        try {
+            $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+            Write-Verbose "SQL Server Assembly loaded"
+        }
+        catch {
+            Write-Warning "Failed to load SQL Server SMO Assemblies - Quitting"
+            break
+        }
+    }
 }
 PROCESS {    
     
