@@ -136,5 +136,9 @@ PROCESS {
     }
 }
 END {
-    $instance.ConnectionContext.Disconnect()
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
+        $instance.ConnectionContext.Disconnect()
+        Write-Verbose "Disconnecting from $SqlInstance"
+    }
+        Write-Output "Open Query Store has been uninstalled"
 }
