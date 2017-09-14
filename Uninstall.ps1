@@ -78,9 +78,11 @@ PROCESS {
 }
 
     # Verify if database exist in the instance
-    if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-        Write-Warning "Database [$Database] does not exists on instance '$SqlInstance'. Uninstallation cancelled."
-        return
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
+        if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
+            Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
+            return
+        }
     }
 
     try {
