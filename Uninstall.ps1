@@ -118,7 +118,7 @@ PROCESS {
             # Replace placeholders
             $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
         }
-        Write-Versbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+        Write-Verbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
     }
     catch {
         throw $_
