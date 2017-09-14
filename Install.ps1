@@ -101,45 +101,62 @@ PROCESS {
         }
     }
 
+    Write-Verbose "Checking SQL Server version"
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
     if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
         Write-Warning "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
         return
     }
-
+    Write-Verbose "SQL Server Version Check passed - Version is $($instance.Version)"
+    
+    Write-Verbose "Checking if Database $Database exists on $SqlInstance"
     # Verify if database exist in the instance
-    if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-        Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
-        return
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
+        if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
+            Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
+            return
+        }
     }
+    Write-Verbose "Database $Database exists on $SqlInstance"
 
     # If we are installing Service Broker for scheduling, we need to do housekeeping for the certificate
     if ($InstallationType -eq "Service Broker") {
-
+        Write-Verbose "Checking Certificate Backup Path $CertificateBackupPath exists"
         #Does the path specified even exist and is it accessible?
         if (-not (Test-Path $CertificateBackupPath -PathType Container)) {
             Write-Warning "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible. Installation cancelled."
             return
         }
+        Write-Verbose "Certificate Backup Path $CertificateBackupPath exists"
 
+        Write-Verbose "Checking if a oqs Certificate exists at $CertificateBackupPath already"
         #Check if the certificate backup location already has the certificate in it
         if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
-            Write-Warning "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path or remove the file at that location. Installation cancelled."
+            Write-Warning "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path, rename it or remove the file at that location. Installation cancelled."
             return
         }
+        Write-Verbose "Certificate existence check completed"
     }
 
     # SQL Agent mode requires SQL Agent to be present. Express Edition doesn't have that, so we have to stop installation if that is the case.
-    if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
-        Write-Warning "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available). Installation cancelled."
-        return
+    Write-Verbose "Checking for Express edition and SQL Agent"
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking edition")) {
+        if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
+            Write-Warning "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available). Installation cancelled."
+            return
+        }
     }
+    Write-Verbose "Check for Express edition and SQL Agent passed"
 
+    Write-Verbose "Checking for oqs schema in $database on $SqlInstance"
     # If 'oqs' schema already exists, we assume that OQS is already installed
-    if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
-        Write-Warning -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
-        return
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
+        if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
+            Write-Warning -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
+            return
+        }
     }
+    Write-Verbose "oqs schema does not exist"
     
     # Load the installer files
     try {
