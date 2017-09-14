@@ -31,7 +31,7 @@ License:
 -- Step 1:	Connect to the database where you previously installed OQS using the
 --			official installer
 
-USE {DatabaseWhereOQSIsRunning}
+USE [{DatabaseWhereOQSIsRunning}]
 GO
 
 -- We first create a certificate. Feel free to use a different password, but
