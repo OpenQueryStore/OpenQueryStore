@@ -39,7 +39,7 @@ https://github.com/OpenQueryStore/OpenQueryStore
 Will uninstall OQS on instance SQL2012 database named ScooterStore
 
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
@@ -49,73 +49,96 @@ param (
 BEGIN {
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
-    $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
-    Clear-Host
+    if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
+        try {
+            $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+            Write-Verbose "SQL Server Assembly loaded"
+        }
+        catch {
+            Write-Warning "Failed to load SQL Server SMO Assemblies - Quitting"
+            break
+        }
+    }
 }
 PROCESS {    
     
     # Connect to instance
-    try {
-        $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-    }
-    catch {
-        throw $_.Exception.Message
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
+        try {
+            $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
+            # Checking if we have actually connected to the instance or not 
+            if ($null -eq $instance.Version) {
+                Write-Warning "Failed to connect to $SqlInstance - Quitting"
+                return
+            }
+        }
+        catch {
+            throw $_
+        }
     }
 
     # Verify if database exist in the instance
-    if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-        Write-Warning "Database [$Database] does not exists on instance '$SqlInstance'. Uninstallation cancelled."
-        return
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
+        if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
+            Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
+            return
+        }
     }
 
     try {
-        Write-Host "INFO: Attempting to identify installation of OQS in database [$database] on instance '$SqlInstance'"
+       
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
+            # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
+            if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
+                Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
+                return
+            }
+            else {
+                Write-Verbose "OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
+            }
+        }
 
-        # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
-        if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
-            Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
-            return
-        }
-        else {
-            Write-Host "INFO: OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
-        }
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
     
     # Load the uninstaller files
     try {
-        Write-Host "INFO: Loading uninstall routine from $path"
-
-        $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
+        Write-Verbose "Loading uninstall routine from $path"
+        if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store.sql", "Loading uninstall SQL Query from")) {
+            $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
      
-        if ($UninstallOQSBase -eq "") {
-            Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-            return
+            if ($UninstallOQSBase -eq "") {
+                Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
+                return
+            }
         }
-
-        # Replace placeholders
-        $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
-
-        Write-Host "INFO: OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+        if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {
+            # Replace placeholders
+            $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        Write-Verbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
 
     try {
-        # Perform the uninstall
-        Write-Host "INFO: Uninstalling OQS in [$database] on instance '$SqlInstance'"
-
-        $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
-        
-        Write-Host "INFO: Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" -ForegroundColor "Green"
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "UnInstalling Base Query")) {
+            # Perform the uninstall
+            $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+        }
+        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
     }
     catch {
-        throw $_.Exception.Message
+        throw $_
     }
 }
 END {
-    $instance.ConnectionContext.Disconnect()
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
+        $instance.ConnectionContext.Disconnect()
+        Write-Verbose "Disconnecting from $SqlInstance"
+    }
+        Write-Output "Open Query Store has been uninstalled"
 }
