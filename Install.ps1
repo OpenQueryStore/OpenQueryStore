@@ -66,7 +66,7 @@ param (
     [parameter(Mandatory = $true)]
     [ValidateSet("Service Broker", "SQL Agent")]
     [string]$SchedulerType = "Service Broker",
-    [string]$CertificateBackupPath = "C:\temp"
+    [string]$CertificateBackupPath = $ENV:TEMP
 )
 BEGIN {
     $path = Get-Location
