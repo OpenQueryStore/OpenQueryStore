@@ -39,7 +39,7 @@ https://github.com/OpenQueryStore/OpenQueryStore
 Will uninstall OQS on instance SQL2012 database named ScooterStore
 
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
