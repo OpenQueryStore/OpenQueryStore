@@ -128,7 +128,7 @@ BEGIN {
             [string]$Message,
             [switch]$Uninstall
         )
-        $OQSError = $_
+        $Script:OQSError = $_.Exception
         if($Uninstall){
             Write-Warning "There was an error at $Message - Running Uninstall then quitting - Error details are in `$OQSError"
             Uninstall-OQS
@@ -136,7 +136,7 @@ BEGIN {
         else {
             Write-Warning "There was an error at $Message - Installation cancelled - Error details are in `$OQSError"
         }
-        Return
+        Break
     }
 }
 PROCESS {    
