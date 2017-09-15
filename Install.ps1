@@ -82,6 +82,46 @@ BEGIN {
             break
         }
     }
+    function Uninstall-OQS {
+        [CmdletBinding(SupportsShouldProcess = $True)]
+        Param()
+        # Load the uninstaller files
+        try {
+            Write-Verbose "Loading uninstall routine from $path"
+            if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store.sql", "Loading uninstall SQL Query from")) {
+                $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
+     
+                if ($UninstallOQSBase -eq "") {
+                    Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
+                    return
+                }
+            }
+            if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {
+                # Replace placeholders
+                $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+            }
+            Write-Verbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+        }
+        catch {
+            throw $_
+        }
+
+        try {
+            if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "UnInstalling Base Query")) {
+                # Perform the uninstall
+                $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+            }
+            Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
+        }
+        catch {
+            throw $_
+        }
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
+            $instance.ConnectionContext.Disconnect()
+            Write-Verbose "Disconnecting from $SqlInstance"
+        }
+        Write-Output "Open Query Store has been uninstalled due to errors in installation - Please review"
+    }
 }
 PROCESS {    
     
