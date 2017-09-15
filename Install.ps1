@@ -122,6 +122,22 @@ BEGIN {
         }
         Write-Output "Open Query Store has been uninstalled due to errors in installation - Please review"
     }
+    function Invoke-Catch{
+        Param(
+            [parameter(Mandatory, ValueFromPipeline)]
+            [string]$Message,
+            [switch]$Uninstall
+        )
+        $OQSError = $_
+        if($Uninstall){
+            Write-Warning "There was an error at $Message - Running Uninstall then quitting - Error details are in `$OQSError"
+            Uninstall-OQS
+        }
+        else {
+            Write-Warning "There was an error at $Message - Installation cancelled - Error details are in `$OQSError"
+        }
+        Return
+    }
 }
 PROCESS {    
     
@@ -132,20 +148,18 @@ PROCESS {
             Write-Verbose "Connecting via SMO to $SqlInstance"
             # Checking if we have actually connected to the instance or not 
             if ($null -eq $instance.Version) {
-                Write-Warning "Failed to connect to $SqlInstance - Quitting"
-                return
+                Invoke-Catch -Message "Failed to connect to $SqlInstance"
             }
         }
         catch {
-            throw $_.Exception.Message
+            Invoke-Catch -Message "Failed to connect to $SqlInstance"
         }
     }
 
     Write-Verbose "Checking SQL Server version"
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
     if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
-        Write-Warning "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
-        return
+        Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
     }
     Write-Verbose "SQL Server Version Check passed - Version is $($instance.Version)"
     
@@ -153,8 +167,7 @@ PROCESS {
     # Verify if database exist in the instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
         if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-            Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
-            return
+            Invoke-Catch -Message "Database [$Database] does not exists on instance $SqlInstance."
         }
     }
     Write-Verbose "Database $Database exists on $SqlInstance"
@@ -164,16 +177,14 @@ PROCESS {
         Write-Verbose "Checking Certificate Backup Path $CertificateBackupPath exists"
         #Does the path specified even exist and is it accessible?
         if (-not (Test-Path $CertificateBackupPath -PathType Container)) {
-            Write-Warning "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible. Installation cancelled."
-            return
+            Invoke-Catch -Message  "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible."
         }
         Write-Verbose "Certificate Backup Path $CertificateBackupPath exists"
 
         Write-Verbose "Checking if a oqs Certificate exists at $CertificateBackupPath already"
         #Check if the certificate backup location already has the certificate in it
         if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
-            Write-Warning "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path, rename it or remove the file at that location. Installation cancelled."
-            return
+            Invoke-Catch -Message  "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path, rename it or remove the file at that location."
         }
         Write-Verbose "Certificate existence check completed"
     }
@@ -182,8 +193,7 @@ PROCESS {
     Write-Verbose "Checking for Express edition and SQL Agent"
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking edition")) {
         if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
-            Write-Warning "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available). Installation cancelled."
-            return
+            Invoke-Catch -Message  "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available)."
         }
     }
     Write-Verbose "Check for Express edition and SQL Agent passed"
@@ -192,8 +202,7 @@ PROCESS {
     # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
         if ($instance.ConnectionContext.ExecuteScalar($qOQSExists)) {
-            Write-Warning -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer. Installation cancelled."
-            return
+            Invoke-Catch -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer."
         }
     }
     Write-Verbose "oqs schema does not exist"
@@ -218,8 +227,7 @@ PROCESS {
         }
      
         if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
-            Write-Warning "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install. Installation cancelled."
-            return
+            Invoke-Catch -Message "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install."
         }
 
         # Replace placeholders
@@ -248,7 +256,7 @@ PROCESS {
         Write-Verbose "OQS install routine successfully loaded from $path. Install can continue."
     }
     catch {
-        throw $_.Exception.Message
+        Invoke-Catch -Message "Failed to load the Install scripts"
     }
 
 
@@ -263,7 +271,7 @@ PROCESS {
             Write-Verbose "Base Query installed in $database on $SqlInstance"
         }
         catch {
-            throw $_.Exception.Message
+            Invoke-Catch -Message "Failed to install base SQL query" -Uninstall
         }
     }
     # Gather statistics stored procedure creation
@@ -274,7 +282,7 @@ PROCESS {
             Write-Verbose "OQS Gather statistics query run on $database in $SqlInstance"
         }
         catch {
-            throw $_.Exception.Message
+            Invoke-Catch -Message "Failed to install gather_statistics SQL query" -Uninstall
         }
     }
     switch ($SchedulerType) {
@@ -286,7 +294,7 @@ PROCESS {
                     Write-Verbose "Service Borker Query run on $Database in $SqlInstance"
                 }
                 catch {
-                    throw $_.Exception.Message
+                    Invoke-Catch -Message "Failed to install service broker SQL query" -Uninstall
                 }
             }
             #We only need to run this script if we don't have any certificate already created (the same certificate can support multiple databases)
@@ -297,9 +305,8 @@ PROCESS {
                         $null = $instance.ConnectionContext.ExecuteNonQuery($InstallServiceBrokerCertificate)
                     }
                     catch {
-                        throw $_.Exception.Message
-                        Write-Warning "Failed to install OQS Service Broker. Please run Uninstall.ps1 to remove partially installed OQS objects."
-                    }
+                        Invoke-Catch -Message "Failed to install Service Broker Certificate SQL query" -Uninstall
+    }
                 }
             }
             Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
@@ -313,7 +320,7 @@ PROCESS {
                     Write-Verbose "OQS Agent Job query run on $database in $SqlInstance"
                 }
                 catch {
-                    throw $_.Exception.Message
+                    Invoke-Catch -Message "Failed to install Agent SQL query" -Uninstall
                 }
             }
             Write-Output "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."
