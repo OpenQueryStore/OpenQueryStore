@@ -21,7 +21,7 @@ Specifies which type of scheduling of data collection should be used. Either "Se
 Specifies the path where certificate backup will be temporarily saved. By default "C:\temp" (the file is deleted immediately after installation)
 
 .PARAMETER JobOwner
-SQL Login for Agent Job Job Owner - Will default to sa if not specified
+SQL Login for Agent Job Job Owner - Will default to sa if not specified 
 
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
