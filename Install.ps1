@@ -69,6 +69,7 @@ param (
     [string]$CertificateBackupPath = $ENV:TEMP
 )
 BEGIN {
+    $OQSUninstalled = $false
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
@@ -85,6 +86,7 @@ BEGIN {
     function Uninstall-OQS {
         [CmdletBinding(SupportsShouldProcess = $True)]
         Param()
+        $OQSUninstalled = $True
         # Load the uninstaller files
         try {
             Write-Verbose "Loading uninstall routine from $path"
@@ -121,6 +123,7 @@ BEGIN {
             Write-Verbose "Disconnecting from $SqlInstance"
         }
         Write-Output "Open Query Store has been uninstalled due to errors in installation - Please review"
+        Break
     }
     function Invoke-Catch{
         Param(
@@ -332,6 +335,7 @@ END {
         $instance.ConnectionContext.Disconnect()
         Write-Verbose "Disconnecting from $SqlInstance"
     }
+    if($OQSUninstalled = $true){Break}
         
     if ($OQSMode -eq "centralized") {
         Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
