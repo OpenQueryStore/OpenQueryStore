@@ -260,7 +260,7 @@ PROCESS {
     }
 
 
-    # Ready to install!
+    # Ready to install! 
     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
      
     # Base object creation
