@@ -191,7 +191,7 @@ IF EXISTS (   SELECT *
               WHERE  [S].[name] = 'Open Query Store - Data Collection'
           )
     BEGIN
-        EXECUTE [dbo].[sp_delete_job] @job_name = 'Open Query Store - Execute oqs.gather_statistics',
+        EXECUTE [dbo].[sp_delete_job] @job_name = 'Open Query Store - Data Collection',
                                       @delete_history = 1,
                                       @delete_unused_schedule = 1;
     END;
