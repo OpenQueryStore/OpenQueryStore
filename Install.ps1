@@ -93,7 +93,7 @@ BEGIN {
      
                 if ($UninstallOQSBase -eq "") {
                     Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-                    return
+                    Break
                 }
             }
             if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {

@@ -69,7 +69,7 @@ PROCESS {
             # Checking if we have actually connected to the instance or not 
             if ($null -eq $instance.Version) {
                 Write-Warning "Failed to connect to $SqlInstance - Quitting"
-                return
+                Break
             }
         }
         catch {
@@ -81,7 +81,7 @@ PROCESS {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
         if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
             Write-Warning "Database [$Database] does not exists on instance $SqlInstance. Installation cancelled."
-            return
+            Break
         }
     }
 
@@ -91,7 +91,7 @@ PROCESS {
             # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
             if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
                 Write-Warning "OpenQueryStore not present in database [$database] on instance '$SqlInstance', no action required. Uninstallation cancelled."
-                return
+                Break
             }
             else {
                 Write-Verbose "OQS installation found in database [$database] on instance '$SqlInstance'. Uninstall process can continue."
@@ -111,7 +111,7 @@ PROCESS {
      
             if ($UninstallOQSBase -eq "") {
                 Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-                return
+                Break
             }
         }
         if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {
