@@ -52,7 +52,7 @@ EXEC @ReturnCode = [msdb].[dbo].[sp_add_job] @job_name = N'Open Query Store - Da
                                              @delete_level = 0,
                                              @description = N'Executes the data collection stored procedure for Open Query Store running using "SQL Agent" scheduling.',
                                              @category_name = N'Open Query Store',
-                                             @owner_login_name = N'sa',
+                                             @owner_login_name = N'{JobOwner}',
                                              @job_id = @jobId OUTPUT;
 IF ( @@Error <> 0 OR @ReturnCode <> 0 ) GOTO QuitWithRollback;
 EXEC @ReturnCode = [msdb].[dbo].[sp_add_jobstep] @job_id = @jobId,
