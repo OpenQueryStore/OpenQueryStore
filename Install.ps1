@@ -20,6 +20,9 @@ Specifies which type of scheduling of data collection should be used. Either "Se
 .PARAMETER CertificateBackupPath
 Specifies the path where certificate backup will be temporarily saved. By default "C:\temp" (the file is deleted immediately after installation)
 
+.PARAMETER JobOwner
+SQL Login for Agent Job Job Owner - Will default to sa if not specified 
+
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
         William Durkin (@sql_williamd)
@@ -66,9 +69,11 @@ param (
     [parameter(Mandatory = $true)]
     [ValidateSet("Service Broker", "SQL Agent")]
     [string]$SchedulerType = "Service Broker",
-    [string]$CertificateBackupPath = $ENV:TEMP
+    [string]$CertificateBackupPath = $ENV:TEMP,
+    [string]$JobOwner = 'sa'
 )
 BEGIN {
+    $OQSUninstalled = $false
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
@@ -85,6 +90,7 @@ BEGIN {
     function Uninstall-OQS {
         [CmdletBinding(SupportsShouldProcess = $True)]
         Param()
+        $OQSUninstalled = $True
         # Load the uninstaller files
         try {
             Write-Verbose "Loading uninstall routine from $path"
@@ -93,7 +99,7 @@ BEGIN {
      
                 if ($UninstallOQSBase -eq "") {
                     Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
-                    return
+                    Break
                 }
             }
             if ($pscmdlet.ShouldProcess("Uninstall Query", "Replacing Database Name with $database")) {
@@ -121,6 +127,7 @@ BEGIN {
             Write-Verbose "Disconnecting from $SqlInstance"
         }
         Write-Output "Open Query Store has been uninstalled due to errors in installation - Please review"
+        Break
     }
     function Invoke-Catch{
         Param(
@@ -198,6 +205,15 @@ PROCESS {
     }
     Write-Verbose "Check for Express edition and SQL Agent passed"
 
+        # Check that we have the JobOwner login
+        Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner"
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking logins for $JobOwner")) {
+            if ($instance.logins.Name.Contains($JobOwner) -eq $false) {
+                Invoke-Catch -Message  "$SQLInstance does not have a login named $JobOwner - We cannot create the Agent Job - Quitting"
+            }
+        }
+        Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
+
     Write-Verbose "Checking for oqs schema in $database on $SqlInstance"
     # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
@@ -252,6 +268,9 @@ PROCESS {
         if ($pscmdlet.ShouldProcess("Agent Job Query", "Replacing Database Name with $database")) {
             $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "$Database"
         }
+        if ($pscmdlet.ShouldProcess("Agent Job Query", "Replacing Job Owner with $JobOwner")) {
+            $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{JobOwner}", "$JobOwner"
+        }
 
         Write-Verbose "OQS install routine successfully loaded from $path. Install can continue."
     }
@@ -260,7 +279,7 @@ PROCESS {
     }
 
 
-    # Ready to install!
+    # Ready to install! 
     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
      
     # Base object creation
@@ -332,6 +351,7 @@ END {
         $instance.ConnectionContext.Disconnect()
         Write-Verbose "Disconnecting from $SqlInstance"
     }
+    if($OQSUninstalled = $true){Break}
         
     if ($OQSMode -eq "centralized") {
         Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
