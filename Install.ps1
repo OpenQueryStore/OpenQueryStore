@@ -147,6 +147,7 @@ BEGIN {
     }
 }
 PROCESS {    
+    $t = $host.ui.RawUI.ForegroundColor
     
     # Connect to instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
@@ -162,7 +163,7 @@ PROCESS {
             Invoke-Catch -Message "Failed to connect to $SqlInstance"
         }
     }
-
+	
     Write-Verbose "Checking SQL Server version"
     # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
     if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
@@ -328,7 +329,10 @@ PROCESS {
     }
                 }
             }
-            Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
+	    $host.ui.RawUI.ForegroundColor = "Green"
+            Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running:"
+	    Write-Output "'EXECUTE [master].[dbo].[open_query_store_startup]'."
+	    $host.ui.RawUI.ForegroundColor = $t
         }
     
         "SQL Agent" {
@@ -354,12 +358,17 @@ END {
     if($OQSUninstalled = $true){Break}
         
     if ($OQSMode -eq "centralized") {
-        Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
+    	$host.ui.RawUI.ForegroundColor = "Green"
+        Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases by running: "
+	Write-Output "'INSERT INTO oqs.monitored_databases ([database_name]) VALUES (`'[CHANGETHIS]`')'"
+	$host.ui.RawUI.ForegroundColor = $t
     }
-        
+    $host.ui.RawUI.ForegroundColor = "Green"    
     Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated. "
-    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
-        
+    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows:"
+    Write-Output "'UPDATE [oqs].[collection_metadata] SET [collection_active] = 1'." 
+    $host.ui.RawUI.ForegroundColor = $t
+    
     if ($SchedulerType -eq "Service Broker") {
         Write-Output "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." 
     }
