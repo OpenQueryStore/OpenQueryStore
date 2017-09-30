@@ -170,6 +170,12 @@ PROCESS {
     }
     Write-Verbose "SQL Server Version Check passed - Version is $($instance.Version)"
     
+    # We know the path we are going to use for the export of the certificate. Lets check it now.
+    if ((test-path $CertificateBackupFullPath) -eq $true)
+    {
+	Invoke-Catch -Message "Old certificate file exists on the path. Please delete is and start the script again."
+    }
+    
     Write-Verbose "Checking if Database $Database exists on $SqlInstance"
     # Verify if database exist in the instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
