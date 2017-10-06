@@ -50,17 +50,20 @@ CREATE TABLE [oqs].[collection_metadata]
         [oqs_mode]            nvarchar (20)  NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
         [oqs_classic_db]      nvarchar (128) NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
         CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
-        [collection_active]   bit            NOT NULL  -- Should OQS be collecting data or not
+        [collection_active]   bit            NOT NULL, -- Should OQS be collecting data or not
+        [execution_threshold] tinyint        NOT NULL  -- The minimum executions of a query plan before we consider it for capture in OQS
     );
 GO
 
+-- Default values for initial installation = Logging turned on, run every 60 seconds, collection deactivated, execution_threshold = 2 to skip single-use plans
 INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [collection_interval],
                                             [oqs_mode],
                                             [oqs_classic_db],
-                                            [collection_active]
+                                            [collection_active],
+                                            [execution_threshold]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2);
 GO
 
 CREATE TABLE [oqs].[activity_log]
@@ -103,17 +106,21 @@ GO
 
 CREATE TABLE [oqs].[plans]
     (
-        [plan_id]            [int]            IDENTITY (1, 1) NOT NULL,
-        [plan_MD5]           [varbinary] (32) NOT NULL,
-        [plan_handle]        [varbinary] (64) NULL,
-        [plan_firstfound]    [datetime]       NULL,
-        [plan_database]      [nvarchar] (150) NULL,
-        [plan_refcounts]     [int]            NULL,
-        [plan_usecounts]     [int]            NULL,
-        [plan_sizeinbytes]   [int]            NULL,
-        [plan_type]          [nvarchar] (50)  NULL,
-        [plan_objecttype]    [nvarchar] (20)  NULL,
-        [plan_executionplan] [xml]            NULL,
+        [plan_id]                                   [int]              IDENTITY (1, 1) NOT NULL,
+        [plan_MD5]                                  [varbinary] (32)   NOT NULL,
+        [plan_handle]                               [varbinary] (64)   NULL,
+        [plan_firstfound]                           [datetime]         NULL,
+        [plan_database]                             [nvarchar] (150)   NULL,
+        [plan_refcounts]                            [int]              NULL,
+        [plan_usecounts]                            [int]              NULL,
+        [plan_sizeinbytes]                          [int]              NULL,
+        [plan_type]                                 [nvarchar] (50)    NULL,
+        [plan_objecttype]                           [nvarchar] (20)    NULL,
+        [plan_executionplan]                        [xml]              NULL,
+        [estimated_available_degree_of_parallelism] [int]              NULL,
+        [estimated_statement_subtree_cost]          [numeric] (19, 12) NULL,
+        [estimated_available_memory_grant]          [int]              NULL,
+        [cost_threshold_for_parallelism]            [int]              NULL,
         CONSTRAINT [pk_plans]
             PRIMARY KEY CLUSTERED ( [plan_id] ASC )
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
