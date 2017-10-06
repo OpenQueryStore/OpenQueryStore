@@ -128,9 +128,9 @@ AS
                                    [cp].[cacheobjtype],
                                    [cp].[objtype],
                                    [qp].[query_plan],
-                                   [plan_executionplan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableDegreeOfParallelism)[1]', 'int' ) AS [available_degree_of_parallelism],
-                                   CAST([plan_executionplan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/@StatementSubTreeCost)[1]', 'real' ) AS numeric (19, 12))                                      AS [estimated_statement_subtree_cost],
-                                   [plan_executionplan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableMemoryGrant)[1]', 'int' )         AS [estimated_available_memory_grant],
+                                   [qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableDegreeOfParallelism)[1]', 'int' ) AS [available_degree_of_parallelism],
+                                   CAST([qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/@StatementSubTreeCost)[1]', 'real' ) AS numeric (19, 12))                                      AS [estimated_statement_subtree_cost],
+                                   [qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableMemoryGrant)[1]', 'int' )         AS [estimated_available_memory_grant],
                                    ( SELECT CAST([C].[value_in_use] AS int) FROM   [sys].[configurations] AS [C] WHERE  [C].[name] = 'cost threshold for parallelism' )                                                       AS [cost_threshold_for_parallelism]
                             FROM   [oqs].[plan_dbid] AS [pd]
                                    INNER JOIN [sys].[dm_exec_cached_plans] AS [cp] ON [pd].[plan_handle] = [cp].[plan_handle]
