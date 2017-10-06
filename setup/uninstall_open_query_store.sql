@@ -24,9 +24,6 @@ License:
 **********************************************************************************************/
 
 
--- Connect to the database where OQS Classic has been installed
-USE [{DatabaseWhereOQSIsRunning}]
-GO
 
 -- Now perform the nuke process
 
@@ -156,19 +153,19 @@ IF EXISTS (   SELECT *
     END;
 
 IF EXISTS (   SELECT *
+              FROM   [sys].[tables] AS [T]
+              WHERE  [T].[object_id] = OBJECT_ID( N'[oqs].[wait_type_filter]' )
+          )
+    BEGIN
+        DROP TABLE [oqs].[wait_type_filter];
+    END;
+	
+IF EXISTS (   SELECT *
               FROM   [sys].[views] AS [V]
               WHERE  [V].[object_id] = OBJECT_ID( N'[oqs].[query_stats]' )
           )
     BEGIN
         DROP VIEW [oqs].[query_stats];
-    END;
-
-IF EXISTS (   SELECT *
-              FROM   [sys].[views] AS [V]
-              WHERE  [V].[object_id] = OBJECT_ID( N'[oqs].[wait_type_filter]' )
-          )
-    BEGIN
-        DROP VIEW [oqs].[wait_type_filter];
     END;
 
 IF EXISTS (   SELECT *
