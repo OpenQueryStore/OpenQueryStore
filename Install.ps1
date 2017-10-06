@@ -328,7 +328,8 @@ PROCESS {
                     }
                 }
             }
-            Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
+            Write-Output "OQS Service Broker installation completed successfully."
+            Write-Output "Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'."
         }
     
         "SQL Agent" {
@@ -351,15 +352,21 @@ END {
         $instance.ConnectionContext.Disconnect()
         Write-Verbose "Disconnecting from $SqlInstance"
     }
-    if ($OQSUninstalled = $true) {Break}
+
+    if ($OQSUninstalled -eq $true) {Break}
         
     if ($OQSMode -eq "centralized") {
         Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
     }
-        
-    Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated. "
-    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
-        
+    Write-Output ""
+    Write-Output ""
+    Write-Output "USER ACTION REQUIRED:"
+    Write-Output ""
+    Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated."
+    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata."
+    Write-Output "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
+    Write-Output ""
+    
     if ($SchedulerType -eq "Service Broker") {
         if ($pscmdlet.ShouldProcess("$CertificateBackupFullPath", "Removing OQS Service Broker Certificate file ")) {
             if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
@@ -375,5 +382,6 @@ END {
             }
         }
     }
+    
     Write-Output "Open Query Store installation successfully completed."
 }
