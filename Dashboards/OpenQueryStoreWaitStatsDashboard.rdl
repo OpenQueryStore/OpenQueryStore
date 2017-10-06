@@ -17,77 +17,14 @@
     <DataSet Name="top10_ws_last_hour">
       <Query>
         <DataSourceName>Localhost</DataSourceName>
-        <CommandText>SELECT   TOP ( 10 ) [qws].[wait_type] ,
-         SUM([qws].[wait_time_ms]) AS [Total wait time]
-FROM     [oqs].[wait_stats] AS [qws]
+        <CommandText>SELECT TOP ( 10 )
+         [qws].[wait_type],
+         SUM( [qws].[wait_time_ms] ) AS [Total wait time]
+FROM     [oqs].[wait_stats]           AS [qws]
          INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
-WHERE    ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
-         AND ( [i].[interval_id] &lt; (   SELECT MAX([interval_id]) AS [Expr1]
-                                      FROM   [oqs].[intervals]
-                                  )
-             )
-         AND ( [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
-                                          N'BROKER_RECEIVE_WAITFOR' ,
-                                          N'BROKER_TASK_STOP' ,
-                                          N'BROKER_TO_FLUSH' ,
-                                          N'BROKER_TRANSMITTER' ,
-                                          N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
-                                          N'CLR_AUTO_EVENT' ,
-                                          N'CLR_MANUAL_EVENT' ,N'CLR_SEMAPHORE' ,
-                                          N'DBMIRROR_DBM_EVENT' ,
-                                          N'DBMIRROR_EVENTS_QUEUE' ,
-                                          N'DBMIRROR_WORKER_QUEUE' ,
-                                          N'DBMIRRORING_CMD' ,
-                                          N'DIRTY_PAGE_POLL' ,
-                                          N'DISPATCHER_QUEUE_SEMAPHORE' ,
-                                          N'EXECSYNC' ,N'FSAGENT' ,
-                                          N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
-                                          N'FT_IFTSHC_MUTEX' ,
-                                          N'HADR_CLUSAPI_CALL' ,
-                                          N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
-                                          N'HADR_LOGCAPTURE_WAIT' ,
-                                          N'HADR_NOTIFICATION_DEQUEUE' ,
-                                          N'HADR_TIMER_TASK' ,
-                                          N'HADR_WORK_QUEUE' ,N'KSOURCE_WAKEUP' ,
-                                          N'LAZYWRITER_SLEEP' ,N'LOGMGR_QUEUE' ,
-                                          N'MEMORY_ALLOCATION_EXT' ,
-                                          N'ONDEMAND_TASK_QUEUE' ,
-                                          N'PREEMPTIVE_XE_GETTARGETSTATE' ,
-                                          N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
-                                          N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
-                                          N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
-                                          N'QDS_ASYNC_QUEUE' ,
-                                          N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
-                                          N'QDS_SHUTDOWN_QUEUE' ,
-                                          N'REDO_THREAD_PENDING_WORK' ,
-                                          N'REQUEST_FOR_DEADLOCK_SEARCH' ,
-                                          N'RESOURCE_QUEUE' ,
-                                          N'SERVER_IDLE_CHECK' ,
-                                          N'SLEEP_BPOOL_FLUSH' ,
-                                          N'SLEEP_DBSTARTUP' ,
-                                          N'SLEEP_DCOMSTARTUP' ,
-                                          N'SLEEP_MASTERDBREADY' ,
-                                          N'SLEEP_MASTERMDREADY' ,
-                                          N'SLEEP_MASTERUPGRADED' ,
-                                          N'SLEEP_MSDBSTARTUP' ,
-                                          N'SLEEP_SYSTEMTASK' ,N'SLEEP_TASK' ,
-                                          N'SLEEP_TEMPDBSTARTUP' ,
-                                          N'SNI_HTTP_ACCEPT' ,
-                                          N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
-                                          N'SQLTRACE_BUFFER_FLUSH' ,
-                                          N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
-                                          N'SQLTRACE_WAIT_ENTRIES' ,
-                                          N'WAIT_FOR_RESULTS' ,N'WAITFOR' ,
-                                          N'WAITFOR_TASKSHUTDOWN' ,
-                                          N'WAIT_XTP_RECOVERY' ,
-                                          N'WAIT_XTP_HOST_WAIT' ,
-                                          N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
-                                          N'WAIT_XTP_CKPT_CLOSE' ,
-                                          N'XE_DISPATCHER_JOIN' ,
-                                          N'XE_DISPATCHER_WAIT' ,
-                                          N'XE_TIMER_EVENT'
-                                        )
-             )
+WHERE    ( [i].[interval_end] &gt;= DATEADD( HOUR, -1, GETDATE()))
+         AND ( [i].[interval_id] &lt; ( SELECT MAX( [interval_id] ) AS [Expr1] FROM [oqs].[intervals] ))
+         AND ( [qws].[wait_type] NOT IN ( SELECT [wait_type] FROM [oqs].[wait_type_filter] ))
 GROUP BY [qws].[wait_type]
 ORDER BY 'Total wait time' DESC;</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
@@ -107,84 +44,22 @@ ORDER BY 'Total wait time' DESC;</CommandText>
       <Query>
         <DataSourceName>Localhost</DataSourceName>
         <CommandText>SELECT *
-FROM   (   SELECT CONVERT(VARCHAR, [i].[interval_end], 108) AS [TimeDate] ,
-                  [qws].[wait_type] ,
-                  [qws].[wait_time_ms] ,
-                  ROW_NUMBER() OVER ( PARTITION BY qws.[interval_id]
+FROM   (   SELECT CONVERT( varchar, [i].[interval_end], 108 ) AS [TimeDate],
+                  [qws].[wait_type],
+                  [qws].[wait_time_ms],
+                  ROW_NUMBER() OVER ( PARTITION BY [qws].[interval_id]
                                       ORDER BY [qws].[wait_type] ASC
-                                    ) AS [r]
-           FROM   [oqs].[wait_stats] AS [qws]
+                                    )                         AS [r]
+           FROM   [oqs].[wait_stats]           AS [qws]
                   INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
-           WHERE  ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
-                  AND [i].[interval_id] &lt; (   SELECT MAX([interval_id])
+           WHERE  ( [i].[interval_end] &gt;= DATEADD( HOUR, -1, GETDATE()))
+                  AND [i].[interval_id] &lt; (   SELECT MAX( [interval_id] )
                                               FROM   [oqs].[intervals]
                                           )
-                  AND [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
-                                                 N'BROKER_RECEIVE_WAITFOR' ,
-                                                 N'BROKER_TASK_STOP' ,
-                                                 N'BROKER_TO_FLUSH' ,
-                                                 N'BROKER_TRANSMITTER' ,
-                                                 N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
-                                                 N'CLR_AUTO_EVENT' ,
-                                                 N'CLR_MANUAL_EVENT' ,
-                                                 N'CLR_SEMAPHORE' ,
-                                                 N'DBMIRROR_DBM_EVENT' ,
-                                                 N'DBMIRROR_EVENTS_QUEUE' ,
-                                                 N'DBMIRROR_WORKER_QUEUE' ,
-                                                 N'DBMIRRORING_CMD' ,
-                                                 N'DIRTY_PAGE_POLL' ,
-                                                 N'DISPATCHER_QUEUE_SEMAPHORE' ,
-                                                 N'EXECSYNC' ,N'FSAGENT' ,
-                                                 N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
-                                                 N'FT_IFTSHC_MUTEX' ,
-                                                 N'HADR_CLUSAPI_CALL' ,
-                                                 N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
-                                                 N'HADR_LOGCAPTURE_WAIT' ,
-                                                 N'HADR_NOTIFICATION_DEQUEUE' ,
-                                                 N'HADR_TIMER_TASK' ,
-                                                 N'HADR_WORK_QUEUE' ,
-                                                 N'KSOURCE_WAKEUP' ,
-                                                 N'LAZYWRITER_SLEEP' ,
-                                                 N'LOGMGR_QUEUE' ,
-                                                 N'MEMORY_ALLOCATION_EXT' ,
-                                                 N'ONDEMAND_TASK_QUEUE' ,
-                                                 N'PREEMPTIVE_XE_GETTARGETSTATE' ,
-                                                 N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
-                                                 N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
-                                                 N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
-                                                 N'QDS_ASYNC_QUEUE' ,
-                                                 N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
-                                                 N'QDS_SHUTDOWN_QUEUE' ,
-                                                 N'REDO_THREAD_PENDING_WORK' ,
-                                                 N'REQUEST_FOR_DEADLOCK_SEARCH' ,
-                                                 N'RESOURCE_QUEUE' ,
-                                                 N'SERVER_IDLE_CHECK' ,
-                                                 N'SLEEP_BPOOL_FLUSH' ,
-                                                 N'SLEEP_DBSTARTUP' ,
-                                                 N'SLEEP_DCOMSTARTUP' ,
-                                                 N'SLEEP_MASTERDBREADY' ,
-                                                 N'SLEEP_MASTERMDREADY' ,
-                                                 N'SLEEP_MASTERUPGRADED' ,
-                                                 N'SLEEP_MSDBSTARTUP' ,
-                                                 N'SLEEP_SYSTEMTASK' ,
-                                                 N'SLEEP_TASK' ,
-                                                 N'SLEEP_TEMPDBSTARTUP' ,
-                                                 N'SNI_HTTP_ACCEPT' ,
-                                                 N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
-                                                 N'SQLTRACE_BUFFER_FLUSH' ,
-                                                 N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
-                                                 N'SQLTRACE_WAIT_ENTRIES' ,
-                                                 N'WAIT_FOR_RESULTS' ,
-                                                 N'WAITFOR' ,
-                                                 N'WAITFOR_TASKSHUTDOWN' ,
-                                                 N'WAIT_XTP_RECOVERY' ,
-                                                 N'WAIT_XTP_HOST_WAIT' ,
-                                                 N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
-                                                 N'WAIT_XTP_CKPT_CLOSE' ,
-                                                 N'XE_DISPATCHER_JOIN' ,
-                                                 N'XE_DISPATCHER_WAIT' ,
-                                                 N'XE_TIMER_EVENT'
-                                               )
+                  AND ( [qws].[wait_type] NOT IN (   SELECT [wait_type]
+                                                     FROM   [oqs].[wait_type_filter]
+                                                 )
+                      )
        ) AS [a]
 WHERE  [a].[r] &lt;= 3;</CommandText>
       </Query>
@@ -210,72 +85,16 @@ WHERE  [a].[r] &lt;= 3;</CommandText>
     <DataSet Name="total_wait_time_per_interval_last_hour">
       <Query>
         <DataSourceName>Localhost</DataSourceName>
-        <CommandText>SELECT   TOP 10 CONVERT(VARCHAR, [i].[interval_end], 108) AS [TimeDate] ,
-         SUM([qws].[wait_time_ms]) AS [Total wait time] ,
-         SUM([qws].[waiting_tasks_count]) AS [Waitings Tasks]
-FROM     [oqs].[wait_stats] AS [qws]
+        <CommandText>SELECT TOP 10
+         CONVERT( varchar, [i].[interval_end], 108 ) AS [TimeDate],
+         SUM( [qws].[wait_time_ms] )                 AS [Total wait time],
+         SUM( [qws].[waiting_tasks_count] )          AS [Waitings Tasks]
+FROM     [oqs].[wait_stats]           AS [qws]
          INNER JOIN [oqs].[intervals] AS [i] ON [qws].[interval_id] = [i].[interval_id]
-WHERE    ( [i].[interval_end] &gt;= DATEADD(HOUR, -1, GETDATE()))
-         AND [i].[interval_id] &lt; (   SELECT MAX([interval_id])
-                                     FROM   [oqs].[intervals]
-                                 )
-         AND [qws].[wait_type] NOT IN ( N'BROKER_EVENTHANDLER' ,
-                                        N'BROKER_RECEIVE_WAITFOR' ,
-                                        N'BROKER_TASK_STOP' ,N'BROKER_TO_FLUSH' ,
-                                        N'BROKER_TRANSMITTER' ,
-                                        N'CHECKPOINT_QUEUE' ,N'CHKPT' ,
-                                        N'CLR_AUTO_EVENT' ,N'CLR_MANUAL_EVENT' ,
-                                        N'CLR_SEMAPHORE' ,N'DBMIRROR_DBM_EVENT' ,
-                                        N'DBMIRROR_EVENTS_QUEUE' ,
-                                        N'DBMIRROR_WORKER_QUEUE' ,
-                                        N'DBMIRRORING_CMD' ,N'DIRTY_PAGE_POLL' ,
-                                        N'DISPATCHER_QUEUE_SEMAPHORE' ,
-                                        N'EXECSYNC' ,N'FSAGENT' ,
-                                        N'FT_IFTS_SCHEDULER_IDLE_WAIT' ,
-                                        N'FT_IFTSHC_MUTEX' ,
-                                        N'HADR_CLUSAPI_CALL' ,
-                                        N'HADR_FILESTREAM_IOMGR_IOCOMPLETION' ,
-                                        N'HADR_LOGCAPTURE_WAIT' ,
-                                        N'HADR_NOTIFICATION_DEQUEUE' ,
-                                        N'HADR_TIMER_TASK' ,N'HADR_WORK_QUEUE' ,
-                                        N'KSOURCE_WAKEUP' ,N'LAZYWRITER_SLEEP' ,
-                                        N'LOGMGR_QUEUE' ,
-                                        N'MEMORY_ALLOCATION_EXT' ,
-                                        N'ONDEMAND_TASK_QUEUE' ,
-                                        N'PREEMPTIVE_XE_GETTARGETSTATE' ,
-                                        N'PWAIT_ALL_COMPONENTS_INITIALIZED' ,
-                                        N'PWAIT_DIRECTLOGCONSUMER_GETNEXT' ,
-                                        N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP' ,
-                                        N'QDS_ASYNC_QUEUE' ,
-                                        N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP' ,
-                                        N'QDS_SHUTDOWN_QUEUE' ,
-                                        N'REDO_THREAD_PENDING_WORK' ,
-                                        N'REQUEST_FOR_DEADLOCK_SEARCH' ,
-                                        N'RESOURCE_QUEUE' ,N'SERVER_IDLE_CHECK' ,
-                                        N'SLEEP_BPOOL_FLUSH' ,
-                                        N'SLEEP_DBSTARTUP' ,
-                                        N'SLEEP_DCOMSTARTUP' ,
-                                        N'SLEEP_MASTERDBREADY' ,
-                                        N'SLEEP_MASTERMDREADY' ,
-                                        N'SLEEP_MASTERUPGRADED' ,
-                                        N'SLEEP_MSDBSTARTUP' ,
-                                        N'SLEEP_SYSTEMTASK' ,N'SLEEP_TASK' ,
-                                        N'SLEEP_TEMPDBSTARTUP' ,
-                                        N'SNI_HTTP_ACCEPT' ,
-                                        N'SP_SERVER_DIAGNOSTICS_SLEEP' ,
-                                        N'SQLTRACE_BUFFER_FLUSH' ,
-                                        N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP' ,
-                                        N'SQLTRACE_WAIT_ENTRIES' ,
-                                        N'WAIT_FOR_RESULTS' ,N'WAITFOR' ,
-                                        N'WAITFOR_TASKSHUTDOWN' ,
-                                        N'WAIT_XTP_RECOVERY' ,
-                                        N'WAIT_XTP_HOST_WAIT' ,
-                                        N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG' ,
-                                        N'WAIT_XTP_CKPT_CLOSE' ,
-                                        N'XE_DISPATCHER_JOIN' ,
-                                        N'XE_DISPATCHER_WAIT' ,N'XE_TIMER_EVENT'
-                                      )
-GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
+WHERE    ( [i].[interval_end] &gt;= DATEADD( HOUR, -1, GETDATE()))
+         AND [i].[interval_id] &lt; ( SELECT MAX( [interval_id] ) FROM [oqs].[intervals] )
+         AND ( [qws].[wait_type] NOT IN ( SELECT [wait_type] FROM [oqs].[wait_type_filter] ))
+GROUP BY CONVERT( varchar, [i].[interval_end], 108 );</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
       <Fields>
@@ -290,6 +109,18 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
         <Field Name="Waitings_Tasks">
           <DataField>Waitings Tasks</DataField>
           <rd:TypeName>System.Int64</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="wait_type_filter_count">
+      <Query>
+        <DataSourceName>Localhost</DataSourceName>
+        <CommandText>SELECT COUNT(*) as [wait_type_filter_count] FROM [oqs].[wait_type_filter] AS [WTF]</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="wait_type_filter_count">
+          <DataField>wait_type_filter_count</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
         </Field>
       </Fields>
     </DataSet>
@@ -680,7 +511,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             </ChartLegends>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Top 10 wait types in the last hour (benign waits filtered)</Caption>
+                <Caption>="Top 10 wait types in the last hour ("+ Str(Sum(Fields!wait_type_filter_count.Value, "wait_type_filter_count"))  + " waits filtered )"</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontSize>9pt</FontSize>
@@ -689,7 +520,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
                   <VerticalAlign>Top</VerticalAlign>
                   <Color>#a6a6a6</Color>
                 </Style>
-                <Position>TopLeft</Position>
+                <DockOutsideChartArea>true</DockOutsideChartArea>
               </ChartTitle>
             </ChartTitles>
             <Palette>BrightPastel</Palette>
@@ -715,6 +546,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             <Height>8.54542cm</Height>
             <Width>15.96667cm</Width>
             <ZIndex>3</ZIndex>
+            <ToolTip>Shows the top 10 wait stats of the last hour (with waits filtered)</ToolTip>
             <Style>
               <Border>
                 <Color>LightGrey</Color>
@@ -1049,7 +881,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             </ChartLegends>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Top 3 wait types per interval in the last hour</Caption>
+                <Caption>="Top 3 wait types per interval in the last hour ("+Str(Sum(Fields!wait_type_filter_count.Value, "wait_type_filter_count"))  + " waits filtered )"</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontSize>9pt</FontSize>
@@ -1084,6 +916,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             <Height>8.54542cm</Height>
             <Width>20.8713cm</Width>
             <ZIndex>4</ZIndex>
+            <ToolTip>Shows the top 3 wait stats per interval in the last hour (with waits filtered)</ToolTip>
             <Style>
               <Border>
                 <Color>LightGrey</Color>
@@ -1115,7 +948,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             <Top>1.2175cm</Top>
             <Left>5.05037cm</Left>
             <Height>0.86458cm</Height>
-            <Width>9.67021cm</Width>
+            <Width>7.10904cm</Width>
             <ZIndex>5</ZIndex>
             <Style>
               <Border>
@@ -1495,7 +1328,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             </ChartLegends>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Total wait time per interval in the last hour</Caption>
+                <Caption>="Total wait time per interval in the last hour ("+ Str(Sum(Fields!wait_type_filter_count.Value, "wait_type_filter_count"))  + " waits filtered )"</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontSize>9pt</FontSize>
@@ -1530,6 +1363,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             <Height>8.54542cm</Height>
             <Width>15.96667cm</Width>
             <ZIndex>6</ZIndex>
+            <ToolTip>Shows the total wait time per interval in the last hour (with waits filtered)</ToolTip>
             <Style>
               <Border>
                 <Color>LightGrey</Color>
@@ -1905,7 +1739,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             </ChartLegends>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Total waiting tasks per interval in the last hour</Caption>
+                <Caption>="Total waiting tasks per interval in the last hour ("+ Str(Sum(Fields!wait_type_filter_count.Value, "wait_type_filter_count"))  + " waits filtered )"</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontSize>9pt</FontSize>
@@ -1940,6 +1774,7 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
             <Height>8.54542cm</Height>
             <Width>20.8713cm</Width>
             <ZIndex>7</ZIndex>
+            <ToolTip>Shows the total wait time per interval in the last hour (with waits filtered)</ToolTip>
             <Style>
               <Border>
                 <Color>LightGrey</Color>
@@ -1949,6 +1784,46 @@ GROUP BY CONVERT(VARCHAR, [i].[interval_end], 108);</CommandText>
               <BackgroundGradientType>None</BackgroundGradientType>
             </Style>
           </Chart>
+          <Textbox Name="Textbox2">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>=Str(Sum(Fields!wait_type_filter_count.Value, "wait_type_filter_count")) + " wait types are filtered out of this dashboard."</Value>
+                    <Style>
+                      <Color>#a6a6a6</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox2</rd:DefaultName>
+            <ActionInfo>
+              <Actions>
+                <Action>
+                  <Hyperlink>https://github.com/OpenQueryStore/OpenQueryStore/wiki/BenignWaits</Hyperlink>
+                </Action>
+              </Actions>
+            </ActionInfo>
+            <Top>1.51384cm</Top>
+            <Left>12.19469cm</Left>
+            <Height>0.56472cm</Height>
+            <Width>9.67021cm</Width>
+            <ZIndex>8</ZIndex>
+            <ToolTip>The wait type filtering is controlled via entries in oqs.wait_type_filters table (click to see online documentation of the wait types)</ToolTip>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
         </ReportItems>
         <Height>8.311in</Height>
         <Style>

@@ -195,6 +195,155 @@ CREATE TABLE [oqs].[wait_stats]
             PRIMARY KEY CLUSTERED ( [interval_id] ASC, [wait_type] ASC )
     ) ON [PRIMARY];
 GO
+CREATE TABLE [oqs].[wait_type_filter]
+    (
+        [wait_type]   nvarchar (60) NOT NULL,
+        [oqs_default] bit           NOT NULL
+            CONSTRAINT [df_wait_type_filter_oqs_default]
+            DEFAULT ( 0 ),
+        CONSTRAINT [pk_wait_type_filter]
+            PRIMARY KEY CLUSTERED ( [wait_type] )
+    ) ON [PRIMARY];
+GO
+-- Populate the wait_type_filter table with predefined "benign" waits as defined by Paul Randal (https://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/)
+INSERT INTO [oqs].[wait_type_filter] (   [wait_type],
+                                         [oqs_default]
+                                     )
+            SELECT N'BROKER_EVENTHANDLER', 1
+            UNION ALL
+            SELECT N'BROKER_RECEIVE_WAITFOR', 1
+            UNION ALL
+            SELECT N'BROKER_TASK_STOP', 1
+            UNION ALL
+            SELECT N'BROKER_TO_FLUSH', 1
+            UNION ALL
+            SELECT N'BROKER_TRANSMITTER', 1
+            UNION ALL
+            SELECT N'CHECKPOINT_QUEUE', 1
+            UNION ALL
+            SELECT N'CHKPT', 1
+            UNION ALL
+            SELECT N'CLR_AUTO_EVENT', 1
+            UNION ALL
+            SELECT N'CLR_MANUAL_EVENT', 1
+            UNION ALL
+            SELECT N'CLR_SEMAPHORE', 1
+            UNION ALL
+            SELECT N'DBMIRROR_DBM_EVENT', 1
+            UNION ALL
+            SELECT N'DBMIRROR_EVENTS_QUEUE', 1
+            UNION ALL
+            SELECT N'DBMIRROR_WORKER_QUEUE', 1
+            UNION ALL
+            SELECT N'DBMIRRORING_CMD', 1
+            UNION ALL
+            SELECT N'DIRTY_PAGE_POLL', 1
+            UNION ALL
+            SELECT N'DISPATCHER_QUEUE_SEMAPHORE', 1
+            UNION ALL
+            SELECT N'EXECSYNC', 1
+            UNION ALL
+            SELECT N'FSAGENT', 1
+            UNION ALL
+            SELECT N'FT_IFTS_SCHEDULER_IDLE_WAIT', 1
+            UNION ALL
+            SELECT N'FT_IFTSHC_MUTEX', 1
+            UNION ALL
+            SELECT N'HADR_CLUSAPI_CALL', 1
+            UNION ALL
+            SELECT N'HADR_FILESTREAM_IOMGR_IOCOMPLETION', 1
+            UNION ALL
+            SELECT N'HADR_LOGCAPTURE_WAIT', 1
+            UNION ALL
+            SELECT N'HADR_NOTIFICATION_DEQUEUE', 1
+            UNION ALL
+            SELECT N'HADR_TIMER_TASK', 1
+            UNION ALL
+            SELECT N'HADR_WORK_QUEUE', 1
+            UNION ALL
+            SELECT N'KSOURCE_WAKEUP', 1
+            UNION ALL
+            SELECT N'LAZYWRITER_SLEEP', 1
+            UNION ALL
+            SELECT N'LOGMGR_QUEUE', 1
+            UNION ALL
+            SELECT N'MEMORY_ALLOCATION_EXT', 1
+            UNION ALL
+            SELECT N'ONDEMAND_TASK_QUEUE', 1
+            UNION ALL
+            SELECT N'PREEMPTIVE_XE_GETTARGETSTATE', 1
+            UNION ALL
+            SELECT N'PWAIT_ALL_COMPONENTS_INITIALIZED', 1
+            UNION ALL
+            SELECT N'PWAIT_DIRECTLOGCONSUMER_GETNEXT', 1
+            UNION ALL
+            SELECT N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP', 1
+            UNION ALL
+            SELECT N'QDS_ASYNC_QUEUE', 1
+            UNION ALL
+            SELECT N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP', 1
+            UNION ALL
+            SELECT N'QDS_SHUTDOWN_QUEUE', 1
+            UNION ALL
+            SELECT N'REDO_THREAD_PENDING_WORK', 1
+            UNION ALL
+            SELECT N'REQUEST_FOR_DEADLOCK_SEARCH', 1
+            UNION ALL
+            SELECT N'RESOURCE_QUEUE', 1
+            UNION ALL
+            SELECT N'SERVER_IDLE_CHECK', 1
+            UNION ALL
+            SELECT N'SLEEP_BPOOL_FLUSH', 1
+            UNION ALL
+            SELECT N'SLEEP_DBSTARTUP', 1
+            UNION ALL
+            SELECT N'SLEEP_DCOMSTARTUP', 1
+            UNION ALL
+            SELECT N'SLEEP_MASTERDBREADY', 1
+            UNION ALL
+            SELECT N'SLEEP_MASTERMDREADY', 1
+            UNION ALL
+            SELECT N'SLEEP_MASTERUPGRADED', 1
+            UNION ALL
+            SELECT N'SLEEP_MSDBSTARTUP', 1
+            UNION ALL
+            SELECT N'SLEEP_SYSTEMTASK', 1
+            UNION ALL
+            SELECT N'SLEEP_TASK', 1
+            UNION ALL
+            SELECT N'SLEEP_TEMPDBSTARTUP', 1
+            UNION ALL
+            SELECT N'SNI_HTTP_ACCEPT', 1
+            UNION ALL
+            SELECT N'SP_SERVER_DIAGNOSTICS_SLEEP', 1
+            UNION ALL
+            SELECT N'SQLTRACE_BUFFER_FLUSH', 1
+            UNION ALL
+            SELECT N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP', 1
+            UNION ALL
+            SELECT N'SQLTRACE_WAIT_ENTRIES', 1
+            UNION ALL
+            SELECT N'WAIT_FOR_RESULTS', 1
+            UNION ALL
+            SELECT N'WAITFOR', 1
+            UNION ALL
+            SELECT N'WAITFOR_TASKSHUTDOWN', 1
+            UNION ALL
+            SELECT N'WAIT_XTP_RECOVERY', 1
+            UNION ALL
+            SELECT N'WAIT_XTP_HOST_WAIT', 1
+            UNION ALL
+            SELECT N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG', 1
+            UNION ALL
+            SELECT N'WAIT_XTP_CKPT_CLOSE', 1
+            UNION ALL
+            SELECT N'XE_DISPATCHER_JOIN', 1
+            UNION ALL
+            SELECT N'XE_DISPATCHER_WAIT', 1
+            UNION ALL
+            SELECT N'XE_TIMER_EVENT', 1
+
+GO
 
 -- Create the OQS query_stats view as a version specific abstraction of sys.dm_exec_query_stats
 DECLARE @MajorVersion   tinyint,
