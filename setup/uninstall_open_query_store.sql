@@ -164,6 +164,14 @@ IF EXISTS (   SELECT *
     END;
 
 IF EXISTS (   SELECT *
+              FROM   [sys].[views] AS [V]
+              WHERE  [V].[object_id] = OBJECT_ID( N'[oqs].[wait_type_filter]' )
+          )
+    BEGIN
+        DROP VIEW [oqs].[wait_type_filter];
+    END;
+
+IF EXISTS (   SELECT *
               FROM   [sys].[server_principals] AS [SP]
               WHERE  [SP].[name] = 'open_query_store'
           )
