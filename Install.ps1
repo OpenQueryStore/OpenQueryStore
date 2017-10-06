@@ -129,14 +129,14 @@ BEGIN {
         Write-Output "Open Query Store has been uninstalled due to errors in installation - Please review"
         Break
     }
-    function Invoke-Catch{
+    function Invoke-Catch {
         Param(
             [parameter(Mandatory, ValueFromPipeline)]
             [string]$Message,
             [switch]$Uninstall
         )
         $Script:OQSError = $_.Exception
-        if($Uninstall){
+        if ($Uninstall) {
             Write-Warning "There was an error at $Message - Running Uninstall then quitting - Error details are in `$OQSError"
             Uninstall-OQS
         }
@@ -205,14 +205,14 @@ PROCESS {
     }
     Write-Verbose "Check for Express edition and SQL Agent passed"
 
-        # Check that we have the JobOwner login
-        Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner"
-        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking logins for $JobOwner")) {
-            if ($instance.logins.Name.Contains($JobOwner) -eq $false) {
-                Invoke-Catch -Message  "$SQLInstance does not have a login named $JobOwner - We cannot create the Agent Job - Quitting"
-            }
+    # Check that we have the JobOwner login
+    Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner"
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking logins for $JobOwner")) {
+        if ($instance.logins.Name.Contains($JobOwner) -eq $false) {
+            Invoke-Catch -Message  "$SQLInstance does not have a login named $JobOwner - We cannot create the Agent Job - Quitting"
         }
-        Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
+    }
+    Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
 
     Write-Verbose "Checking for oqs schema in $database on $SqlInstance"
     # If 'oqs' schema already exists, we assume that OQS is already installed
@@ -325,7 +325,7 @@ PROCESS {
                     }
                     catch {
                         Invoke-Catch -Message "Failed to install Service Broker Certificate SQL query" -Uninstall
-    }
+                    }
                 }
             }
             Write-Output "OQS Service Broker installation completed successfully. Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'." -ForegroundColor "Yellow"
@@ -351,7 +351,7 @@ END {
         $instance.ConnectionContext.Disconnect()
         Write-Verbose "Disconnecting from $SqlInstance"
     }
-    if($OQSUninstalled = $true){Break}
+    if ($OQSUninstalled = $true) {Break}
         
     if ($OQSMode -eq "centralized") {
         Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
@@ -361,8 +361,19 @@ END {
     Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata as follows: UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
         
     if ($SchedulerType -eq "Service Broker") {
-        Write-Output "Please remove the file $CertificateBackupFullPath as it is no longer needed and will prevent a fresh install of OQS at a later time." 
+        if ($pscmdlet.ShouldProcess("$CertificateBackupFullPath", "Removing OQS Service Broker Certificate file ")) {
+            if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
+                try {
+                    Write-Verbose "Attempting to remove OQS Service Broker certificate"
+                    Remove-Item $CertificateBackupFullPath -Force
+                    Write-Verbose "Successfully removed OQS Service Broker certificate."
+                    return    
+                }
+                catch {
+                    Invoke-Catch -Message "Failed to remove OQS Service Broker certificate, please check and remove the file manually ($CertificateBackupFullPath) "
+                }            
+            }
+        }
     }
-            
     Write-Output "Open Query Store installation successfully completed."
 }
