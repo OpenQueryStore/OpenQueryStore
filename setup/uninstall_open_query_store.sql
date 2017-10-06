@@ -24,7 +24,8 @@ License:
 **********************************************************************************************/
 
 
-
+USE [{DatabaseWhereOQSIsRunning}]
+GO
 -- Now perform the nuke process
 
 IF EXISTS ( SELECT * FROM [sys].[services] AS [S] WHERE [S].[name] = 'oqs_service' )
