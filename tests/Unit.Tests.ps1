@@ -13,5 +13,18 @@ Describe "Basic function unit tests" -Tags Build , Unit{
 
 }
 InModuleScope -ModuleName $ModuleName -ScriptBlock {
-    
+    Describe "Testing Install-OpenQueryStore command" -Tag Install {
+        It "Command Install-OpenQueryStore exists" {
+            Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
+        }
+        Context "Install-OpenQueryStore input" {
+            
+        }
+        Context "Install-OpenQueryStore Execution" {
+
+        }
+        Context "Install-OpenQueryStore Output" {
+
+        }
+    }
 }
