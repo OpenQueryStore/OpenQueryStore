@@ -12,7 +12,7 @@ Import-Module $ModuleBase\$ModuleName.psd1 -PassThru -ErrorAction Stop | Out-Nul
 Describe "Basic function unit tests" -Tags Build , Unit{
 
 }
-InModuleScope -ModuleName $ModuleName -ScriptBlock {
+#InModuleScope -ModuleName $ModuleName -ScriptBlock {
     Describe "Testing Install-OpenQueryStore command" -Tags Install {
         It "Command Install-OpenQueryStore exists" {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
@@ -20,10 +20,36 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
         Context "Install-OpenQueryStore input" {
             
         }
+        Context "Version Support" {
+            function Invoke-Catch{}
+            Mock Invoke-Catch {}
+            #We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014
+            It "Should Break for SQL 2017" {
+                Mock Connect-DbaInstance {ConvertFrom-Json $Env:ModuleBase\tests\json\SQL2017version.json}
+                
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Be 
+            }
+            It 'Checks the Mock was called for Connect-DbaInstance' {
+                $assertMockParams = @{
+                    'CommandName' = 'Connect-DbaInstance'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
+            It 'Checks the Mock was called for Invoke-Catch' {
+                $assertMockParams = @{
+                    'CommandName' = 'Invoke-Catch'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
+        }
         Context "Install-OpenQueryStore Execution" {
-            It "Should write a warning if dbatools module not available"{
-                Mock Get-Module {}
-                Mock Write-Warning {}
+            Mock Get-Module {}
+            Mock Write-Warning {}
+            It "Should write a warning if dbatools module not available"{      
                 Install-OpenQueryStore | Should Not Throw
             }
             It 'Checks the Mock was called for Write-Warning' {
@@ -34,10 +60,17 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 }
                 Assert-MockCalled @assertMockParams 
             }
-
+            It 'Checks the Mock was called for Get-Module' {
+                $assertMockParams = @{
+                    'CommandName' = 'Get-Module'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
         }
         Context "Install-OpenQueryStore Output" {
 
         }
     }
-}
+#}
