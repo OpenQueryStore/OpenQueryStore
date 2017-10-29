@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Install OpenQueryStore on specified instance/database.
 
@@ -384,4 +384,5 @@ END {
     }
     
     Write-Output "Open Query Store installation successfully completed."
+    $OQSUninstalled = $false
 }
