@@ -30,8 +30,20 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 
                 Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Be 
             }
-            It "Should Break for SQL 2017" {
+            It "Should Break for SQL 2016" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2016version.json) -join "`n" | ConvertFrom-Json 
+                Mock Connect-DbaInstance {$results}
+                
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Be 
+            }
+            It "Should Break for SQL 2005" {
+                $results = (Get-Content $PSScriptRoot\json\SQL2005version.json) -join "`n" | ConvertFrom-Json 
+                Mock Connect-DbaInstance {$results}
+                
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Be 
+            }
+            It "Should Break for SQL 2000" {
+                $results = (Get-Content $PSScriptRoot\json\SQL2000version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}
                 
                 Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Be 
@@ -39,7 +51,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Connect-DbaInstance' {
                 $assertMockParams = @{
                     'CommandName' = 'Connect-DbaInstance'
-                    'Times'       = 2
+                    'Times'       = 4
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
@@ -47,7 +59,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Invoke-Catch' {
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
-                    'Times'       = 2
+                    'Times'       = 4
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
