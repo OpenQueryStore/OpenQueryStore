@@ -21,6 +21,19 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             
         }
         Context "Install-OpenQueryStore Execution" {
+            It "Should write a warning if dbatools module not available"{
+                Mock Get-Module {}
+                Mock Write-Warning {}
+                Install-OpenQueryStore | Should Not Throw
+            }
+            It 'Checks the Mock was called for Write-Warning' {
+                $assertMockParams = @{
+                    'CommandName' = 'Write-Warning'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
 
         }
         Context "Install-OpenQueryStore Output" {
