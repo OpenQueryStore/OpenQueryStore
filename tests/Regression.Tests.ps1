@@ -1,4 +1,4 @@
-$script:ModuleName = 'BeardAnalysis'
+$script:ModuleName = 'OpenQueryStore'
 # Removes all versions of the module from the session before importing
 Get-Module $ModuleName | Remove-Module
 $ModuleBase = Split-Path -Parent $MyInvocation.MyCommand.Path
