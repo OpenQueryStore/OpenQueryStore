@@ -4,11 +4,19 @@ function Install-OpenQueryStore {
         [string]$CertificateBackupPath = $ENV:TEMP
     )
     Begin {
-
+        ## load dbatools as it will make things easier
+        if ((Get-Module dbatools -ListAvailable).Count -eq 0) {
+            Write-Warning "OpenQueryStore requires dbatools module (https://dbatools.io) - Please install using Install-module dbatools"
+            break
+        }
+        else {
+            Import-Module dbatools
+        }
     }
     
     Process {
         
+         # Create a function to go in the Catch Block
         function Invoke-Catch {
             Param(
                 [parameter(Mandatory, ValueFromPipeline)]
@@ -25,25 +33,6 @@ function Install-OpenQueryStore {
             }
             Break
         }
-        function Connect-SMO {
-            [CmdletBinding(SupportsShouldProcess = $True)]
-            param ()
-            # Connect to instance
-            if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
-                try {
-                    $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-                    Write-Verbose "Connecting via SMO to $SqlInstance"
-                    # Checking if we have actually connected to the instance or not 
-                    if ($null -eq $instance.Version) {
-                        Invoke-Catch -Message "Failed to connect to $SqlInstance"
-                    }
-                }
-                catch {
-                    Invoke-Catch -Message "Failed to connect to $SqlInstance"
-                }
-            }
-        }
-
         function Test-SQLVersion {
             # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
             if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
@@ -62,16 +51,6 @@ function Install-OpenQueryStore {
         }
         $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
         $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
-        if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
-            try {
-                Install-SMO
-                Write-Verbose "SQL Server Assembly loaded"
-            }
-            catch {
-                Write-Warning "Failed to load SQL Server SMO Assemblies - Quitting"
-                break
-            }
-        }
         # Connect to instance
         Connect-SMO
 
