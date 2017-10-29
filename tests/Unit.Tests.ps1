@@ -21,10 +21,6 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             
         }
         Context "Install-OpenQueryStore Execution" {
-            It "Should exit if SMO will not load" {
-               Mock Install-SMO {$false} -Verifiable
-                Install-OpenQueryStore | Should Be "Failed to load SQL Server SMO Assemblies - Quitting"
-            }
 
         }
         Context "Install-OpenQueryStore Output" {

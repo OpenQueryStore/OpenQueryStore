@@ -8,9 +8,7 @@ function Install-OpenQueryStore {
     }
     
     Process {
-        function Install-SMO {
-            $null = [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
-        }
+        
         function Invoke-Catch {
             Param(
                 [parameter(Mandatory, ValueFromPipeline)]
