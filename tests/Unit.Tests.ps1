@@ -18,6 +18,20 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
         }
         Context "Install-OpenQueryStore input" {
+            function Invoke-Catch{}
+            Mock Invoke-Catch {}
+            $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
+            Mock Connect-DbaInstance {$results}
+            Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "WrongDatabase" }
+            It "Should call the Invoke-Catch if there is no database"{
+                Install-OpenQueryStore -SqlInstance Dummy -Database WrongDatabase
+                $assertMockParams = @{
+                    'CommandName' = 'Invoke-Catch'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
             
         }
         Context "Version Support" {
