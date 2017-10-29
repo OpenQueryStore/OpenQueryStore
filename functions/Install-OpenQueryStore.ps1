@@ -1,6 +1,10 @@
 function Install-OpenQueryStore {
     [CmdletBinding(SupportsShouldProcess = $True)]
     param (
+        [parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+        [parameter(Mandatory = $true)]
+        [string]$Database,
         [string]$CertificateBackupPath = $ENV:TEMP
     )
     Begin {
@@ -33,36 +37,13 @@ function Install-OpenQueryStore {
             }
             Break
         }
-        function Test-SQLVersion {
+
+        $Instance = Connect-DbaInstance -SqlInstance $SqlInstance
+    
             # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
             if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
                 Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
             }
-        }
-        function Test-OQSDatabase {
-            [CmdletBinding(SupportsShouldProcess = $True)]
-            param ()
-            # Verify if database exist in the instance
-            if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
-                if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-                    Invoke-Catch -Message "Database [$Database] does not exists on instance $SqlInstance."
-                }
-            }
-        }
-        $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
-        $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
-        # Connect to instance
-        Connect-SMO
-
-        Write-Verbose "Checking SQL Server version"
-        
-        Test-SQLVersion
-        Write-Verbose "SQL Server Version Check passed - Version is $($instance.Version)"
-         
-        Test-OQSDatabase
-        Write-Verbose "Database $Database exists on $SqlInstance"
-
-        Write-Verbose "Checking if Database $Database exists on $SqlInstance"
     }
     End {}
 }
