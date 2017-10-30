@@ -4,7 +4,7 @@ function Install-OpenQueryStore {
         [parameter(Mandatory = $true)]
         [string]$SqlInstance,
         [parameter(Mandatory = $true)]
-        [string]$Database,
+        [string]$DatabaseName,
         [string]$CertificateBackupPath = $ENV:TEMP
     )
     Begin {
@@ -43,13 +43,15 @@ function Install-OpenQueryStore {
             # We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014 (v12.X.X)
             if ($instance.Version.Major -lt 10 -or $instance.Version.Major -gt 12) {
                 Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
+           return
             }
             Write-Verbose "Checking if Database $Database exists on $SqlInstance"
             # Verify if database exist in the instance
             if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
-                $Database = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
+                $Database = Get-DbaDatabase -SqlInstance $SqlInstance -Database $DatabaseName
                 if (-not $Database) {
                     Invoke-Catch -Message "Database [$Database] does not exists on instance $SqlInstance."
+                    return
                 }
             }
             Write-Verbose "Database $Database exists on $SqlInstance"
