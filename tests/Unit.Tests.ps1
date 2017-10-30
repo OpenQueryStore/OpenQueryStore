@@ -9,7 +9,7 @@ if ((Split-Path $ModuleBase -Leaf) -eq 'Tests') {
 ## this variable is for the VSTS tasks and is to be used for refernecing any mock artifacts
 $Env:ModuleBase = $ModuleBase
 Import-Module $ModuleBase\$ModuleName.psd1 -PassThru -ErrorAction Stop | Out-Null
-Describe "Basic function unit tests" -Tags Build , Unit{
+Describe "Basic function unit tests" -Tags Build , Unit {
 
 }
 InModuleScope -ModuleName $ModuleName -ScriptBlock {
@@ -18,13 +18,13 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
         }
         Context "Install-OpenQueryStore input" {
-            function Invoke-Catch{}
+            function Invoke-Catch {}
             Mock Invoke-Catch {}
             $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
             Mock Connect-DbaInstance {$results}
             Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "WrongDatabase" } {}
             Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
-            It "Should call the Invoke-Catch if there is no database"{
+            It "Should call the Invoke-Catch if there is no database" {
                 Install-OpenQueryStore -SqlInstance Dummy -Database WrongDatabase
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
@@ -43,10 +43,16 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Assert-MockCalled @assertMockParams 
             
             }
+            It "Should accept a value for OQSMode of classic" {
+                {Install-OpenQueryStore -SqlInstance Dummy -DatabaseName OQSDatabase -OQSMode 'Classic'} | Should Not Throw
+            }
             
+            It "Should accept a value for OQS Mode of centralized" {
+                {Install-OpenQueryStore -SqlInstance Dummy -DatabaseName OQSDatabase -OQSMode 'Centralized'} | Should Not Throw
+            }            
         }
         Context "Version Support" {
-            function Invoke-Catch{}
+            function Invoke-Catch {}
             Mock Invoke-Catch {break}
             #We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014
             It "Should Break for SQL 2017" {
@@ -93,7 +99,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
         Context "Install-OpenQueryStore Execution" {
             Mock Get-Module {}
             Mock Write-Warning {}
-            It "Should write a warning if dbatools module not available"{      
+            It "Should write a warning if dbatools module not available" {      
                 Install-OpenQueryStore -SqlInstance Dummy -Database Dummy | Should Not Throw
             }
             It 'Checks the Mock was called for Write-Warning' {
