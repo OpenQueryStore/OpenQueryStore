@@ -22,7 +22,8 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             Mock Invoke-Catch {}
             $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
             Mock Connect-DbaInstance {$results}
-            Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "WrongDatabase" }
+            Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "WrongDatabase" } {}
+            Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
             It "Should call the Invoke-Catch if there is no database"{
                 Install-OpenQueryStore -SqlInstance Dummy -Database WrongDatabase
                 $assertMockParams = @{
@@ -32,11 +33,21 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 }
                 Assert-MockCalled @assertMockParams 
             }
+            It "Should Not call Invoke-Catch if there is a database" {
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase
+                $assertMockParams = @{
+                    'CommandName' = 'Invoke-Catch'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            
+            }
             
         }
         Context "Version Support" {
             function Invoke-Catch{}
-            Mock Invoke-Catch {}
+            Mock Invoke-Catch {break}
             #We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014
             It "Should Break for SQL 2017" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2017version.json) -join "`n" | ConvertFrom-Json 
