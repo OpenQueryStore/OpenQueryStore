@@ -5,9 +5,11 @@ function Install-OpenQueryStore {
         [string]$SqlInstance,
         [parameter(Mandatory = $true)]
         [string]$DatabaseName,
-        [parameter(Mandatory = $true)]
         [ValidateSet("Classic", "Centralized")]
-        [string]$OQSMode = "Classic",
+        [string]$OQSMode = "Classic",    
+        [parameter(Mandatory = $true)]
+        [ValidateSet("Service Broker", "SQL Agent")]
+        [string]$SchedulerType,
         [string]$CertificateBackupPath = $ENV:TEMP
     )
     Begin {
