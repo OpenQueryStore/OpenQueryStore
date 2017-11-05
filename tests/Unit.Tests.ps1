@@ -124,6 +124,22 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 }
                 Assert-MockCalled @assertMockParams 
             }
+            It "Should call Invoke catch if no certificate path" {
+                Mock Test-Path {$false}
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Not Throw
+                $assertMockParams = @{
+                    'CommandName' = 'Test-Path'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+                $assertMockParams = @{
+                    'CommandName' = 'Invoke-Catch'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
         }
         Context "Install-OpenQueryStore Output" {
 
