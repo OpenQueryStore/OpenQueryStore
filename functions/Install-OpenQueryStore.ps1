@@ -60,6 +60,15 @@ function Install-OpenQueryStore {
             }
         }
         Write-Verbose "Database $Database exists on $SqlInstance"
+         
+        # If we are installing Service Broker for scheduling, we need to do housekeeping for the certificate
+        if ($InstallationType -eq "Service Broker") {
+            Write-Verbose "Checking Certificate Backup Path $CertificateBackupPath exists"
+            #Does the path specified even exist and is it accessible?
+            if (-not (Test-Path $CertificateBackupPath -PathType Container)) {
+                Invoke-Catch -Message  "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible."
+            }
+        }
     }
     End {}
 }
