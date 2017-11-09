@@ -10,7 +10,8 @@ function Install-OpenQueryStore {
         [parameter(Mandatory = $true)]
         [ValidateSet("Service Broker", "SQL Agent")]
         [string]$SchedulerType,
-        [string]$CertificateBackupPath = $ENV:TEMP
+        [string]$CertificateBackupPath = $ENV:TEMP,
+        [string]$JobOwner = 'sa'
     )
     Begin {
         ## load dbatools as it will make things easier
@@ -21,6 +22,7 @@ function Install-OpenQueryStore {
         else {
             Import-Module dbatools
         }
+        $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
     }
     
     Process {
@@ -69,6 +71,32 @@ function Install-OpenQueryStore {
                 Invoke-Catch -Message  "The path specified for backing up the service broker certificate ($CertificateBackupPath) doesn't exist or is inaccesible."
             }
         }
+        Write-Verbose "Certificate Backup Path $CertificateBackupPath exists"
+        
+        Write-Verbose "Checking if a oqs Certificate exists at $CertificateBackupPath already"
+        #Check if the certificate backup location already has the certificate in it
+        if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
+            Invoke-Catch -Message  "An OpenQueryStore certificate already exists at the backup location: $CertificateBackupPath. Please choose another path, rename it or remove the file at that location."
+        }
+        Write-Verbose "Certificate existence check completed"
+        # SQL Agent mode requires SQL Agent to be present. Express Edition doesn't have that, so we have to stop installation if that is the case.
+        Write-Verbose "Checking for Express edition and SQL Agent"
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking edition")) {
+            if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
+                Invoke-Catch -Message  "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available)."
+            }
+        }
+        Write-Verbose "Check for Express edition and SQL Agent passed"
+
+    # Check that we have the JobOwner login
+    Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner"
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking logins for $JobOwner")) {
+        if ($instance.logins.Name.Contains($JobOwner) -eq $false) {
+            Invoke-Catch -Message  "$SQLInstance does not have a login named $JobOwner - We cannot create the Agent Job - Quitting"
+        }
+    }
+    Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
+
     }
     End {}
 }
