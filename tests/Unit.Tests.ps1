@@ -87,8 +87,16 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
                 Mock Invoke-Catch {'Owner';break}        
-                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Owner'
-            
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Owner'     
+            }
+            It "Should Break if OQS Schema exists" {
+
+                $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
+                Mock Connect-DbaInstance {$results}                
+                Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
+                Mock Invoke-Catch {'Schema';break}        
+                Mock Check-OQSSchema {'Schema Exists'}
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Schema'
             }
             It 'Checks the Mock was called for Connect-DbaInstance' {
                 $assertMockParams = @{
