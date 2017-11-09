@@ -14,6 +14,7 @@ function Install-OpenQueryStore {
         [string]$JobOwner = 'sa'
     )
     Begin {
+        $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
         ## load dbatools as it will make things easier
         if ((Get-Module dbatools -ListAvailable).Count -eq 0) {
             Write-Warning "OpenQueryStore requires dbatools module (https://dbatools.io) - Please install using Install-module dbatools"
@@ -97,6 +98,20 @@ function Install-OpenQueryStore {
     }
     Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
 
+    Function Check-OQSSchema {
+        $instance.ConnectionContext.ExecuteScalar($qOQSExists)
+    }
+
+    Write-Verbose "Checking for oqs schema in $database on $SqlInstance"
+    # If 'oqs' schema already exists, we assume that OQS is already installed
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
+        if (Check-OQSSchema) {
+            Invoke-Catch -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer."
+        }
+    }
+    Write-Verbose "oqs schema does not exist"
+
+    
     }
     End {}
 }

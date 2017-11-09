@@ -14,6 +14,8 @@ Describe "Basic function unit tests" -Tags Build , Unit {
 }
 InModuleScope -ModuleName $ModuleName -ScriptBlock {
     Describe "Testing Install-OpenQueryStore command" -Tags Install {
+        Function Check-OQSSchema {}       
+        Mock Check-OQSSchema {'Schema Exists'}
         It "Command Install-OpenQueryStore exists" {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
         }
@@ -34,6 +36,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Assert-MockCalled @assertMockParams 
             }
             It "Should accept a value for OQSMode of classic" {
+                
                 {Install-OpenQueryStore -SqlInstance Dummy -DatabaseName OQSDatabase -OQSMode 'Classic'-SchedulerType 'Service Broker'} | Should Not Throw
             }       
             It "Should accept a value for OQS Mode of centralized" {
@@ -48,45 +51,42 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
         }
         Context "Version Support" {
             function Invoke-Catch {}
-            Mock Invoke-Catch {break}
             #We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014
             It "Should Break for SQL 2017" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2017version.json) -join "`n" | ConvertFrom-Json 
                 Mock Get-DbaInstance {$results}
                 
-                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Be 
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Be 'break'
             }
             It "Should Break for SQL 2016" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2016version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}
                 
-                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker' | Should Be 
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker' | Should Be 'break'
             }
             It "Should Break for SQL 2005" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2005version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}
                 
-                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker' | Should Be 
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker' | Should Be 'break'
             }
             It "Should Break for SQL 2000" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2000version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}
                 
-                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Be 
+                Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Be 'break'
             }
             It "Should Break for SQL Agent on Express Edition" {
                 $results = (Get-Content $PSScriptRoot\json\ExpressEdition.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results} 
                 
-                Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
-                 Mock Invoke-Catch {'Agent';break}        
-                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Agent'
+                Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}   
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'break'
             }
             It "Should Break if JobOwner Does not Exist on the Instance"{
                 $results = (Get-Content $PSScriptRoot\json\SQL2012versionLogin.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}                
-                Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
-                Mock Invoke-Catch {'Owner';break}        
+                Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}        
                 Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Owner'     
             }
             It "Should Break if OQS Schema exists" {
@@ -102,7 +102,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Connect-DbaInstance' {
                 $assertMockParams = @{
                     'CommandName' = 'Connect-DbaInstance'
-                    'Times'       = 6 ## now 6 with job Owner
+                    'Times'       = 7 ## now 7 with schema
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
@@ -110,7 +110,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Invoke-Catch' {
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
-                    'Times'       = 6 ## now 6 with Job Owner
+                    'Times'       = 1 ## now only 1
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
