@@ -94,7 +94,8 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
-                Mock Invoke-Catch {'Schema';break}        
+                Mock Invoke-Catch {'Schema';break} 
+                Function Check-OQSSchema {}       
                 Mock Check-OQSSchema {'Schema Exists'}
                 Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Schema'
             }
