@@ -93,7 +93,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Connect-DbaInstance' {
                 $assertMockParams = @{
                     'CommandName' = 'Connect-DbaInstance'
-                    'Times'       = 5 ## now 5 with agent call
+                    'Times'       = 6 ## now 6 with job Owner
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
@@ -101,7 +101,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Invoke-Catch' {
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
-                    'Times'       = 5 ## now 5 with agent call
+                    'Times'       = 6 ## now 6 with Job Owner
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
