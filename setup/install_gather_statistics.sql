@@ -1,7 +1,7 @@
 /*********************************************************************************************
 Open Query Store
 Install gather_statistics for Open Query Store
-v0.6 - October 2017
+v0.7 - November 2017
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -75,10 +75,21 @@ AS
 
                 IF @execution_threshold IS NULL SET @execution_threshold = 2;
 
-                -- We capture plans based on databases that are present in the Databases table of the OpenQueryStore database
-                INSERT INTO [oqs].[plan_dbid] (   [plan_handle],
-                                                  [dbid]
-                                              )
+
+                IF OBJECT_ID('tempdb..#plan_dbid') IS NOT NULL
+                    DROP TABLE #plan_dbid;
+					
+				CREATE TABLE #plan_dbid (
+					plan_handle varbinary(64) NOT NULL,
+					dbid int NOT NULL,
+					PRIMARY KEY CLUSTERED (plan_handle, dbid)
+				)
+
+				-- We capture plans based on databases that are present in the Databases table of the OpenQueryStore database				
+				-- First, everythihng does into a temp table (we'll need this data for the next query)	
+                INSERT INTO #plan_dbid (   [plan_handle],
+                                           [dbid]
+                                       )
                             SELECT   [plan_handle],
                                      CONVERT( int, [pvt].[dbid] )
                             FROM     (   SELECT [plan_handle],
@@ -96,7 +107,14 @@ AS
                                      AND [pvt].[dbid] IN (   SELECT DB_ID( [MD].[database_name] )
                                                              FROM   [oqs].[monitored_databases] AS [MD]
                                                          )
-                            ORDER BY [pvt].[sql_handle]
+                            ORDER BY [pvt].[sql_handle];
+
+                -- Next, we add the rows to the destination table
+                INSERT INTO [oqs].[plan_dbid] (   [plan_handle] ,
+                                                  [dbid]
+                                              )
+                            SELECT [plan_handle], [dbid]
+                            FROM #plan_dbid;
 
                 -- Start execution plan insertion
                 -- Get plans from the plan cache that do not exist in the OQS_Plans table
@@ -133,7 +151,8 @@ AS
                                    [qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableMemoryGrant)[1]', 'int' )         AS [estimated_available_memory_grant],
                                    ( SELECT CAST([C].[value_in_use] AS int) FROM   [sys].[configurations] AS [C] WHERE  [C].[name] = 'cost threshold for parallelism' )                                                       AS [cost_threshold_for_parallelism]
                             FROM   [oqs].[plan_dbid] AS [pd]
-                                   INNER JOIN [sys].[dm_exec_cached_plans] AS [cp] ON [pd].[plan_handle] = [cp].[plan_handle]
+							       INNER MERGE JOIN #plan_dbid AS tpdb ON [tpdb].[plan_handle] = [pd].[plan_handle] AND [tpdb].[dbid] = [pd].[dbid]
+                                   INNER HASH JOIN [sys].[dm_exec_cached_plans] AS [cp] ON [pd].[plan_handle] = [cp].[plan_handle]
                                    CROSS APPLY [sys].[dm_exec_query_plan]( [cp].[plan_handle] ) AS [qp]
                                    CROSS APPLY [query_plan].[nodes]( '/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp' ) AS [q]([n])
                                    CROSS APPLY [sys].[dm_exec_sql_text]( [cp].[plan_handle] )
