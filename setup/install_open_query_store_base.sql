@@ -143,6 +143,14 @@ CREATE TABLE [oqs].[queries]
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
 GO
 
+CREATE TABLE [oqs].[excluded_queries]
+    (
+        [query_id] int NOT NULL,
+        CONSTRAINT [pk_excluded_queries_query_id]
+            PRIMARY KEY CLUSTERED ( [query_id] ASC )
+    )
+GO
+
 CREATE TABLE [oqs].[query_runtime_stats]
     (
         [query_id]             [int]      NOT NULL,
@@ -445,6 +453,14 @@ BEGIN
     TRUNCATE TABLE [oqs].[queries];
     TRUNCATE TABLE [oqs].[query_runtime_stats];
     TRUNCATE TABLE [oqs].[wait_stats];
+    TRUNCATE TABLE [oqs].[excluded_queries];
 END
 GO
 
+CREATE PROCEDURE oqs.exclude_query_from_dashboard @query_id int
+AS
+BEGIN
+    INSERT INTO [oqs].[excluded_queries] ( [query_id] )
+    VALUES ( @query_id )
+END
+GO

@@ -27,6 +27,7 @@ WHERE    i.Interval_End &gt;= DATEADD(HOUR, -1, GETDATE())
                                 FROM   oqs.Intervals
                             )
          AND qrs.execution_count &gt; 0
+         AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY qrs.query_id
 ORDER BY avg_elapsed_time DESC;</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
@@ -55,6 +56,7 @@ WHERE    ( i.Interval_End &gt;= DATEADD(HOUR, -1, GETDATE()))
          AND i.Interval_Id &lt; (   SELECT MAX(Interval_Id)
                                 FROM   oqs.Intervals
                             )
+         AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY qrs.query_id
 ORDER BY Count_Exec DESC;</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
@@ -77,6 +79,7 @@ ORDER BY Count_Exec DESC;</CommandText>
          COUNT(DISTINCT qrs.query_id) AS 'Distinct queries'
 FROM     oqs.Query_Runtime_Stats AS qrs
 WHERE    ( qrs.last_execution_time &gt;= DATEADD(HOUR, -1, GETDATE()))
+        AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY qrs.last_execution_time
 ORDER BY TimeDate;</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
@@ -127,6 +130,7 @@ WHERE    ( i.Interval_End &gt;= DATEADD(HOUR, -8, GETDATE()))
          AND i.Interval_Id &lt; (   SELECT MAX(Interval_Id)
                                 FROM   oqs.Intervals
                             )
+         AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY CONVERT(VARCHAR, i.Interval_End, 108) ,
          p.plan_database
 ORDER BY TimeDate;</CommandText>
@@ -155,7 +159,7 @@ ORDER BY TimeDate;</CommandText>
 FROM   sys.dm_db_partition_stats
 WHERE  OBJECT_NAME(object_id) IN ( 'Intervals', 'PlanDBID', 'Plans' ,
                                    'Queries' ,'Query_Runtime_Stats' ,
-                                   'Wait_Stats' ,'Activity_Log'
+                                   'Wait_Stats' ,'Activity_Log','excluded_queries'
                                  );</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
@@ -261,6 +265,7 @@ WHERE    ( i.Interval_End &gt;= DATEADD(HOUR, -1, GETDATE()))
          AND i.Interval_Id &lt;= (   SELECT MAX(Interval_Id) - 1
                                  FROM   oqs.Intervals
                              )
+         AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY CONVERT(VARCHAR, i.Interval_End, 108) ,
          p.plan_database
 ORDER BY TimeDate;</CommandText>
@@ -301,6 +306,7 @@ WHERE    ( qrs.execution_count &gt; 0 )
                                   FROM   oqs.Intervals
                               )
              )
+         AND qrs.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
 GROUP BY CONVERT(VARCHAR, i.Interval_End, 108) ,
          p.plan_database
 ORDER BY TimeDate;</CommandText>
@@ -329,6 +335,7 @@ AS ( SELECT   q.query_hash ,
               p.plan_database
      FROM     oqs.Queries q
               INNER JOIN oqs.Plans p ON q.plan_id = p.plan_id
+              WHERE q.query_id NOT IN (SELECT EQ.[query_id] FROM [oqs].[excluded_queries] AS [EQ])
      GROUP BY q.query_hash ,
               p.plan_database
      HAVING   COUNT(q.query_id) &gt; 1
@@ -355,6 +362,18 @@ FROM   CTE_Multiple_Plans cte
         </Field>
         <Field Name="Plan_ID">
           <DataField>Plan ID</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="excluded_query_count">
+      <Query>
+        <DataSourceName>LocalServer</DataSourceName>
+        <CommandText>SELECT COUNT(*) as [excluded_query_count] FROM [oqs].[excluded_queries] AS [EQ]</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="excluded_query_count">
+          <DataField>excluded_query_count</DataField>
           <rd:TypeName>System.Int32</rd:TypeName>
         </Field>
       </Fields>
@@ -4676,6 +4695,39 @@ FROM   CTE_Multiple_Plans cte
               <BackgroundGradientType>None</BackgroundGradientType>
             </Style>
           </Chart>
+            <Textbox Name="Textbox2">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>=Str(Sum(Fields!excluded_query_count.Value, "excluded_query_count")) + " queries are filtered out of this dashboard."</Value>
+                    <Style>
+                      <Color>#a6a6a6</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox2</rd:DefaultName>
+            <Top>1.51384cm</Top>
+            <Left>12.19469cm</Left>
+            <Height>0.56472cm</Height>
+            <Width>9.67021cm</Width>
+            <ZIndex>8</ZIndex>
+            <ToolTip>The query filtering is controlled via entries in the oqs.excluded_queries table</ToolTip>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
         </ReportItems>
         <Height>12.91517in</Height>
         <Style />
