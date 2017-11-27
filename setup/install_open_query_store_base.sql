@@ -51,7 +51,8 @@ CREATE TABLE [oqs].[collection_metadata]
         [oqs_classic_db]      nvarchar (128) NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
         CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
         [collection_active]   bit            NOT NULL, -- Should OQS be collecting data or not
-        [execution_threshold] tinyint        NOT NULL  -- The minimum executions of a query plan before we consider it for capture in OQS
+        [execution_threshold] tinyint        NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
+        [current_version]     varchar (10)   NOT NULL  -- The version of OQS currently installed
     );
 GO
 
@@ -61,9 +62,10 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [oqs_mode],
                                             [oqs_classic_db],
                                             [collection_active],
-                                            [execution_threshold]
+                                            [execution_threshold],
+                                            [current_version]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,'2.0.3');
 GO
 
 CREATE TABLE [oqs].[activity_log]
