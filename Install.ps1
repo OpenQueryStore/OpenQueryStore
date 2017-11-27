@@ -23,6 +23,9 @@ Specifies the path where certificate backup will be temporarily saved. By defaul
 .PARAMETER JobOwner
 SQL Login for Agent Job Job Owner - Will default to sa if not specified 
 
+.PARAMETER CreateDatabase
+Create a central OQS database if it isn't already there - Will default to "no" if not specified 
+
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
         William Durkin (@sql_williamd)
@@ -70,12 +73,15 @@ param (
     [ValidateSet("Service Broker", "SQL Agent")]
     [string]$SchedulerType = "Service Broker",
     [string]$CertificateBackupPath = $ENV:TEMP,
-    [string]$JobOwner = 'sa'
+    [string]$JobOwner = "sa",
+    [ValidateSet("Yes", "No")]
+    [string]$CreateDatabase = "No"
 )
 BEGIN {
     $OQSUninstalled = $false
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
+    $qOQSCreate = "CREATE DATABASE [$Database]"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
     if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
         try {
@@ -173,8 +179,8 @@ PROCESS {
     Write-Verbose "Checking if Database $Database exists on $SqlInstance"
     # Verify if database exist in the instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
-        if (-not ($instance.Databases | Where-Object Name -eq $Database)) {
-            Invoke-Catch -Message "Database [$Database] does not exists on instance $SqlInstance."
+        if (-not ($instance.Databases | Where-Object Name -eq $Database) -and ($CreateDatabase -eq "No")) {
+            Invoke-Catch -Message "Database [$Database] does not exists on instance $SqlInstance and the CreateDatabase parameter was set to 'No'."
         }
     }
     Write-Verbose "Database $Database exists on $SqlInstance"
@@ -281,7 +287,22 @@ PROCESS {
 
     # Ready to install! 
     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
-     
+    
+     # Create OQS database
+     if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Creating database if not already available.")) {
+        try {
+            
+            Write-Verbose "Creating OQS database [$Database]"
+            if (-not ($instance.Databases | Where-Object Name -eq $Database) -and ($CreateDatabase -eq "Yes")) {
+                $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSCreate)
+            }
+            Write-Verbose "OQS database [$Database] created on $SqlInstance"
+        }
+        catch {
+            Invoke-Catch -Message "Failed to create OQS database [$Database]"
+        }
+    }
+
     # Base object creation
     if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Base Query")) {
         try {
