@@ -16,6 +16,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
     Describe "Testing Install-OpenQueryStore command" -Tags Install {
         Function Check-OQSSchema {}       
         Mock Check-OQSSchema {'Schema Exists'}
+        Mock Get-Content {$false} -ParameterFilter {$Raw}
         It "Command Install-OpenQueryStore exists" {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
         }
@@ -51,6 +52,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
         }
         Context "Version Support" {
             function Invoke-Catch {}
+            Mock Invoke-Catch {'Break'; Return}
             #We only support between SQL Server 2008 (v10.X.X) and SQL Server 2014
             It "Should Break for SQL 2017" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2017version.json) -join "`n" | ConvertFrom-Json 
@@ -140,6 +142,9 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
+            }
+            It "Should Call Invoke-Catch if fails to get content from files" {
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'break'
             }
             It "Should call Invoke catch if no certificate path" {
                 Mock Test-Path {$false}
