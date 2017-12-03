@@ -51,7 +51,8 @@ CREATE TABLE [oqs].[collection_metadata]
         [oqs_classic_db]      nvarchar (128) NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
         CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
         [collection_active]   bit            NOT NULL, -- Should OQS be collecting data or not
-        [execution_threshold] tinyint        NOT NULL  -- The minimum executions of a query plan before we consider it for capture in OQS
+        [execution_threshold] tinyint        NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
+        [current_version]     varchar (10)   NOT NULL  -- The version of OQS currently installed
     );
 GO
 
@@ -61,9 +62,10 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [oqs_mode],
                                             [oqs_classic_db],
                                             [collection_active],
-                                            [execution_threshold]
+                                            [execution_threshold],
+                                            [current_version]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,'2.0.3');
 GO
 
 CREATE TABLE [oqs].[activity_log]
@@ -139,6 +141,14 @@ CREATE TABLE [oqs].[queries]
         CONSTRAINT [pk_queries]
             PRIMARY KEY CLUSTERED ( [query_id] ASC )
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
+GO
+
+CREATE TABLE [oqs].[excluded_queries]
+    (
+        [query_id] int NOT NULL,
+        CONSTRAINT [pk_excluded_queries_query_id]
+            PRIMARY KEY CLUSTERED ( [query_id] ASC )
+    )
 GO
 
 CREATE TABLE [oqs].[query_runtime_stats]
@@ -443,6 +453,14 @@ BEGIN
     TRUNCATE TABLE [oqs].[queries];
     TRUNCATE TABLE [oqs].[query_runtime_stats];
     TRUNCATE TABLE [oqs].[wait_stats];
+    TRUNCATE TABLE [oqs].[excluded_queries];
 END
 GO
 
+CREATE PROCEDURE oqs.exclude_query_from_dashboard @query_id int
+AS
+BEGIN
+    INSERT INTO [oqs].[excluded_queries] ( [query_id] )
+    VALUES ( @query_id )
+END
+GO
