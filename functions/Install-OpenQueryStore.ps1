@@ -111,7 +111,62 @@ function Install-OpenQueryStore {
     }
     Write-Verbose "oqs schema does not exist"
 
-    
+    # Load the installer files
+    try {
+        Write-Verbose "Loading install routine from $path"
+        if ($pscmdlet.ShouldProcess("$path\setup\install_open_query_store_base.sql", "Loading OQS base SQL Query from")) {
+            $InstallOQSBase = Get-Content -Path "$path\setup\install_open_query_store_base.sql" -Raw
+        }
+        if ($pscmdlet.ShouldProcess("$path\setup\install_gather_statistics.sql", "Loading OQS Gather stats SQL Query from")) {
+            $InstallOQSGatherStatistics = Get-Content -Path "$path\setup\install_gather_statistics.sql" -Raw
+        }
+        if ($pscmdlet.ShouldProcess("$path\setup\install_service_broker.sql", "Loading Service Broker SQL Query from")) {
+            $InstallServiceBroker = Get-Content -Path "$path\setup\install_service_broker.sql" -Raw
+        }
+        if ($pscmdlet.ShouldProcess("$path\setup\install_service_broker_certificate.sql", "Loading Service Broker certificate SQL Query from")) {
+            $InstallServiceBrokerCertificate = Get-Content -Path "$path\setup\install_service_broker_certificate.sql" -Raw
+        }
+        if ($pscmdlet.ShouldProcess("$path\setup\install_sql_agent_job.sql", "Loading Agent Job SQL Query from")) {
+            $InstallSQLAgentJob = Get-Content -Path "$path\setup\install_sql_agent_job.sql" -Raw
+        }
+     
+        if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
+            Invoke-Catch -Message "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install."
+        }
+
+        # Replace placeholders
+        if ($pscmdlet.ShouldProcess("Base Query", "Replacing Database Name with $database")) {
+            $InstallOQSBase = $InstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        if ($pscmdlet.ShouldProcess("Base Query", "Replacing OQS Mode with $OQSMode")) {
+            $InstallOQSBase = $InstallOQSBase -replace "{OQSMode}", "$OQSMode"
+        }
+        if ($pscmdlet.ShouldProcess("Gather Statistics Query", "Replacing Database Name with $database")) {
+            $InstallOQSGatherStatistics = $InstallOQSGatherStatistics -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        if ($pscmdlet.ShouldProcess("Service Broker Query", "Replacing Database Name with $database")) {
+            $InstallServiceBroker = $InstallServiceBroker -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        if ($pscmdlet.ShouldProcess("Service Broker Certificate Query", "Replacing Database Name with $database")) {
+            $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        if ($pscmdlet.ShouldProcess("Service Broker Certificate Query", "Replacing File Path")) {
+            $InstallServiceBrokerCertificate = $InstallServiceBrokerCertificate -replace "{Enter A File Location accessible by the SQL Server Service Account}", "$CertificateBackupFullPath"
+        }
+        if ($pscmdlet.ShouldProcess("Agent Job Query", "Replacing Database Name with $database")) {
+            $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{DatabaseWhereOQSIsRunning}", "$Database"
+        }
+        if ($pscmdlet.ShouldProcess("Agent Job Query", "Replacing Job Owner with $JobOwner")) {
+            $InstallSQLAgentJob = $InstallSQLAgentJob -replace "{JobOwner}", "$JobOwner"
+        }
+
+        Write-Verbose "OQS install routine successfully loaded from $path. Install can continue."
+    }
+    catch {
+        Invoke-Catch -Message "Failed to load the Install scripts"
+    }
+
+
     }
     End {}
 }
