@@ -18,7 +18,7 @@ function Install-OpenQueryStore {
         ## load dbatools as it will make things easier
         if ((Get-Module dbatools -ListAvailable).Count -eq 0) {
             Write-Warning "OpenQueryStore requires dbatools module (https://dbatools.io) - Please install using Install-module dbatools"
-            break
+            Break 
         }
         else {
             Import-Module dbatools
@@ -43,7 +43,7 @@ function Install-OpenQueryStore {
             else {
                 Write-Warning "There was an error at $Message - Installation cancelled - Error details are in `$OQSError"
             }
-            Break
+            Return
         }
 
         $Instance = Connect-DbaInstance -SqlInstance $SqlInstance 
@@ -85,6 +85,7 @@ function Install-OpenQueryStore {
         if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking edition")) {
             if ($instance.EngineEdition -eq 'Express' -and $SchedulerType -eq 'SQL Agent') {
                 Invoke-Catch -Message  "$SqlInstance is an Express Edition instance. OQS installations using $SchedulerType CANNOT be installed on Express Edition (no SQL Agent available)."
+                Return
             }
         }
         Write-Verbose "Check for Express edition and SQL Agent passed"
@@ -94,6 +95,7 @@ function Install-OpenQueryStore {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking logins for $JobOwner")) {
         if ($instance.logins.Name.Contains($JobOwner) -eq $false) {
             Invoke-Catch -Message  "$SQLInstance does not have a login named $JobOwner - We cannot create the Agent Job - Quitting"
+            Return
         }
     }
     Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
@@ -107,6 +109,7 @@ function Install-OpenQueryStore {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
         if (Test-OQSSchema) {
             Invoke-Catch -Message "OpenQueryStore appears to already be installed on database [$database] on instance '$SqlInstance' (oqs schema already exists). If you want to reinstall please run the Unistall.sql and then re-run this installer."
+            Return
         }
     }
     Write-Verbose "oqs schema does not exist"
@@ -132,6 +135,7 @@ function Install-OpenQueryStore {
      
         if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
             Invoke-Catch -Message "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install."
+            Return
         }
 
         # Replace placeholders
