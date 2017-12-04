@@ -15,6 +15,7 @@ function Install-OpenQueryStore {
     )
     Begin {
         $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
+        $qOQSCreate = "CREATE DATABASE [$Database]"
         ## load dbatools as it will make things easier
         if ((Get-Module dbatools -ListAvailable).Count -eq 0) {
             Write-Warning "OpenQueryStore requires dbatools module (https://dbatools.io) - Please install using Install-module dbatools"
@@ -44,6 +45,21 @@ function Install-OpenQueryStore {
                 Write-Warning "There was an error at $Message - Installation cancelled - Error details are in `$OQSError"
             }
             Return
+        }
+
+        Function Test-OQSSchema {
+            $instance.ConnectionContext.ExecuteScalar($qOQSExists)
+        }
+
+        Function New-OQSDatabase {
+            $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSCreate)
+        }
+
+        Function Install-OQSBase {
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSBase)
+        }
+        Function Install-OQSGatherStatistics {
+            $null = $instance.ConnectionContext.ExecuteNonQuery($InstallOQSGatherStatistics)
         }
 
         $Instance = Connect-DbaInstance -SqlInstance $SqlInstance 
@@ -168,6 +184,7 @@ function Install-OpenQueryStore {
     }
     catch {
         Invoke-Catch -Message "Failed to load the Install scripts"
+        Return
     }
 
 
