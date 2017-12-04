@@ -112,7 +112,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             It 'Checks the Mock was called for Invoke-Catch' {
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
-                    'Times'       = 1 ## now only 1
+                    'Times'       = 7 # now 7
                     'Exactly'     = $true
                 }
                 Assert-MockCalled @assertMockParams 
