@@ -184,7 +184,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                     'CommandName' = 'New-OQSDatabase'
                     'Times'       = 1
                     'Exactly'     = $true
-        }
+                }
                 Assert-MockCalled @assertMockParams 
             }
             It "Should Call Install-OQSBase" {
@@ -193,9 +193,21 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                     'CommandName' = 'Install-OQSBase'
                     'Times'       = 1
                     'Exactly'     = $true
-    }
-    Context "Install-OpenQueryStore Output" {
+                }
+                Assert-MockCalled @assertMockParams 
+            }
+            It "Should Call Install-OQSGatherStatistics" {
+                 Install-OpenQueryStore -SqlInstance dummy -DatabaseName New -OQSMode Classic -SchedulerType 'Service Broker' -CertificateBackupPath NoCert 
+                $assertMockParams = @{
+                    'CommandName' = 'Install-OQSGatherStatistics'
+                    'Times'       = 1
+                    'Exactly'     = $true
+                }
+                Assert-MockCalled @assertMockParams 
+            }
+        }
+        Context "Install-OpenQueryStore Output" {
 
+        }
     }
 }
-

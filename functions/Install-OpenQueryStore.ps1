@@ -116,10 +116,6 @@ function Install-OpenQueryStore {
     }
     Write-Verbose "Checking for SQL Agent Job Owner account $JobOwner passed"
 
-    Function Test-OQSSchema {
-        $instance.ConnectionContext.ExecuteScalar($qOQSExists)
-    }
-
     Write-Verbose "Checking for oqs schema in $database on $SqlInstance"
     # If 'oqs' schema already exists, we assume that OQS is already installed
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
@@ -186,8 +182,45 @@ function Install-OpenQueryStore {
         Invoke-Catch -Message "Failed to load the Install scripts"
         Return
     }
-
-
+    # Ready to install! 
+    Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
+    
+        
+     # Create OQS database
+     if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Creating database if not already available.")) {
+        try {      
+            Write-Verbose "Creating OQS database [$Database]"
+            if (-not ($instance.Databases | Where-Object Name -eq $Database) -and ($CreateDatabase -eq "Yes")) {
+                New-OQSDatabase
+            }
+            Write-Verbose "OQS database [$Database] created on $SqlInstance"
+        }
+        catch {
+            Invoke-Catch -Message "Failed to create OQS database [$Database]"
+        }
+    }
+    # Base object creation
+    if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Base Query")) {
+        try {
+            Write-Verbose "Installing OQS base objects"
+            Install-OQSBase
+            Write-Verbose "Base Query installed in $database on $SqlInstance"
+        }
+        catch {
+            Invoke-Catch -Message "Failed to install base SQL query" -Uninstall
+        }
+    }
+   # Gather statistics stored procedure creation
+   if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Gather Statistics Query")) {
+    try {
+        Write-Verbose "Installing OQS gather_statistics stored procedure"
+        Install-OQSGatherStatistics
+        Write-Verbose "OQS Gather statistics query run on $database in $SqlInstance"
+    }
+    catch {
+        Invoke-Catch -Message "Failed to install gather_statistics SQL query" -Uninstall
+    }
+}
     }
     End {}
 }
