@@ -89,7 +89,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 $results = (Get-Content $PSScriptRoot\json\SQL2012versionLogin.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}        
-                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Owner'     
+                Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'break'     
             }
             It "Should Break if OQS Schema exists" {
 
