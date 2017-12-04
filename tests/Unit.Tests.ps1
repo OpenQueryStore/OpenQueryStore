@@ -85,7 +85,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}   
                 Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'break'
             }
-            It "Should Break if JobOwner Does not Exist on the Instance"{
+            It "Should Break if JobOwner Does not Exist on the Instance" {
                 $results = (Get-Content $PSScriptRoot\json\SQL2012versionLogin.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}        
@@ -96,7 +96,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 $results = (Get-Content $PSScriptRoot\json\SQL2012version.json) -join "`n" | ConvertFrom-Json 
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
-                Mock Invoke-Catch {'Schema';break} 
+                Mock Invoke-Catch {'Schema'; break} 
                 Function Test-OQSSchema {}       
                 Mock Test-OQSSchema {'Schema Exists'}
                 Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Schema'
@@ -119,10 +119,14 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             }
         }
         Context "Install-OpenQueryStore Execution" {
+            Function New-OQSDatabase {}
+            Mock New-OQSDatabase {}
+            Function Install-OQSBase {}
+            Mock Install-OQSBase {}
             Mock Get-Module {}
             Mock Write-Warning {}
             Mock Test-Path -ParameterFilter {$CertificateBackupPath -and $CertificateBackupPath -eq 'NoCert'} {$false}
-            Mock Test-Path -ParameterFilter {$CertificateBackupPath -and $CertificateBackupPath -eq 'NoCert'} {$true}
+            Mock Test-Path -ParameterFilter {$CertificateBackupPath -and $CertificateBackupPath -eq 'Cert'} {$true}
 
             It "Should write a warning if dbatools module not available" {      
                 Install-OpenQueryStore -SqlInstance Dummy -Database Dummy -SchedulerType 'Service Broker'| Should Not Throw
@@ -171,6 +175,12 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 }
                 Assert-MockCalled @assertMockParams 
             }
+            It "Should Call New-OQSDatabase if no database exists" {
+                Install-OpenQueryStore -SqlInstance dummy -DatabaseName New -OQSMode Classic -SchedulerType 'Service Broker' -CertificateBackupPath NoCert 
+                $assertMockParams = @{
+                    'CommandName' = 'New-OQSDatabase'
+                    'Times'       = 1
+                    'Exactly'     = $true
         }
     }
     Context "Install-OpenQueryStore Output" {
