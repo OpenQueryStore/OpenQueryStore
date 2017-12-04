@@ -124,6 +124,9 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
             Function Install-OQSBase {}
             Mock Install-OQSBase {}
             Mock Get-Module {}
+            Function Install-OQSGatherStatistics {}
+            Mock Install-OQSGatherStatistics {}
+            Mock Get-Module {}
             Mock Write-Warning {}
             Mock Test-Path -ParameterFilter {$CertificateBackupPath -and $CertificateBackupPath -eq 'NoCert'} {$false}
             Mock Test-Path -ParameterFilter {$CertificateBackupPath -and $CertificateBackupPath -eq 'Cert'} {$true}
@@ -167,7 +170,7 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Assert-MockCalled @assertMockParams 
             }
             It "Should call Invoke-Catch if certificate exists" {
-                Install-OpenQueryStore -SqlInstance dummy -DatabaseName dummy -OQSMode Classic -SchedulerType 'Service Broker' -CertificateBackupPath NoCert 
+                Install-OpenQueryStore -SqlInstance dummy -DatabaseName dummy -OQSMode Classic -SchedulerType 'Service Broker' -CertificateBackupPath Cert 
                 $assertMockParams = @{
                     'CommandName' = 'Invoke-Catch'
                     'Times'       = 1
@@ -182,6 +185,14 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                     'Times'       = 1
                     'Exactly'     = $true
         }
+                Assert-MockCalled @assertMockParams 
+            }
+            It "Should Call Install-OQSBase" {
+                Install-OpenQueryStore -SqlInstance dummy -DatabaseName New -OQSMode Classic -SchedulerType 'Service Broker' -CertificateBackupPath NoCert 
+                $assertMockParams = @{
+                    'CommandName' = 'Install-OQSBase'
+                    'Times'       = 1
+                    'Exactly'     = $true
     }
     Context "Install-OpenQueryStore Output" {
 
