@@ -14,8 +14,8 @@ Describe "Basic function unit tests" -Tags Build , Unit {
 }
 InModuleScope -ModuleName $ModuleName -ScriptBlock {
     Describe "Testing Install-OpenQueryStore command" -Tags Install {
-        Function Check-OQSSchema {}       
-        Mock Check-OQSSchema {'Schema Exists'}
+        Function Test-OQSSchema {}       
+        Mock Test-OQSSchema {'Schema Exists'}
         Mock Get-Content {$false} -ParameterFilter {$Raw}
         It "Command Install-OpenQueryStore exists" {
             Get-Command Install-OpenQueryStore -ErrorAction SilentlyContinue | Should Not BE NullOrEmpty
@@ -97,8 +97,8 @@ InModuleScope -ModuleName $ModuleName -ScriptBlock {
                 Mock Connect-DbaInstance {$results}                
                 Mock Get-DbaDatabase -ParameterFilter { $Database -and $Database -eq "OQSDatabase" } {'A Database'}
                 Mock Invoke-Catch {'Schema';break} 
-                Function Check-OQSSchema {}       
-                Mock Check-OQSSchema {'Schema Exists'}
+                Function Test-OQSSchema {}       
+                Mock Test-OQSSchema {'Schema Exists'}
                 Install-OpenQueryStore -SqlInstance Dummy -Database OQSDatabase -SchedulerType 'SQL Agent'| Should Be 'Schema'
             }
             It 'Checks the Mock was called for Connect-DbaInstance' {
