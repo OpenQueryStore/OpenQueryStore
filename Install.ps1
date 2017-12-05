@@ -8,6 +8,9 @@ Verify if OQS is not already installed on destination database and if not will r
 .PARAMETER SqlInstance
 The SQL Server that you're connecting to.
 
+.PARAMETER Credential
+Credential object used to connect to the SQL Server Instance as a different user. This can be a Windows or SQL Server account. Windows users are determined by the existence of a backslash, so if you are intending to use an alternative Windows connection instead of a SQL login, ensure it contains a backslash.
+
 .PARAMETER Database
 Specifies the Database where OQS objects will be created
 
@@ -21,10 +24,10 @@ Specifies which type of scheduling of data collection should be used. Either "Se
 Specifies the path where certificate backup will be temporarily saved. By default "C:\temp" (the file is deleted immediately after installation)
 
 .PARAMETER JobOwner
-SQL Login for Agent Job Job Owner - Will default to sa if not specified 
+SQL Login for Agent Job Job Owner - Will default to sa if not specified
 
 .PARAMETER CreateDatabase
-Create a central OQS database if it isn't already there - Will default to "no" if not specified 
+Create a central OQS database if it isn't already there - Will default to "no" if not specified
 
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
@@ -55,15 +58,30 @@ https://github.com/OpenQueryStore/OpenQueryStore
 Will install the Classic version on instance SQL2012 database named ScooterStore and use Service Broker for scheduling, storing the certificate in c:\temp.
 
 .EXAMPLE
-.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -OQSMode "Centralized" -SchedulerType "SQL Agent"
+.\Install.ps1 -SqlInstance SQL2012 -Database db3 -OQSMode "Centralized" -SchedulerType "SQL Agent"
 
 Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling.
+
+.EXAMPLE
+$wincred = Get-Credential ad\sqladmin
+.\Install.ps1 -SqlInstance SQL2012 -Credential $wincred -Database ScooterStore -OQSMode "Classic" -SchedulerType "Service Broker"
+
+Will install the Classic version on instance SQL2012 using ad\sqladmin (Windows Authentication) on database named ScooterStore and use Service Broker for scheduling.
+
+.EXAMPLE
+$sqlcred = Get-Credential sqladmin
+.\Install.ps1 -SqlInstance SQL2012 -Credential $sqlcred -Database ScooterStore -OQSMode "Classic" -SchedulerType "Service Broker"
+
+Will install the Classic version on instance SQL2012 using sqladmin (SQL Authentication) on database named ScooterStore and use Service Broker for scheduling.
+
 
 #>
 [CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
+    [Alias("SqlCredential")]
+    [PSCredential]$Credential,
     [parameter(Mandatory = $true)]
     [string]$Database,
     [parameter(Mandatory = $true)]
@@ -102,7 +120,7 @@ BEGIN {
             Write-Verbose "Loading uninstall routine from $path"
             if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store.sql", "Loading uninstall SQL Query from")) {
                 $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
-     
+
                 if ($UninstallOQSBase -eq "") {
                     Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
                     Break
@@ -123,7 +141,7 @@ BEGIN {
                 # Perform the uninstall
                 $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
             }
-            Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
+            Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'"
         }
         catch {
             throw $_
@@ -152,14 +170,46 @@ BEGIN {
         Break
     }
 }
-PROCESS {    
-    
+PROCESS {
+
     # Connect to instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
         try {
             $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-            Write-Verbose "Connecting via SMO to $SqlInstance"
-            # Checking if we have actually connected to the instance or not 
+
+            try {
+				if ($Credential.username -ne $null) {
+					$username = ($Credential.username).TrimStart("\")
+
+					if ($username -like "*\*") {
+						$username = $username.Split("\")[1]
+						$authtype = "Windows Authentication with Credential"
+						$instance.ConnectionContext.LoginSecure = $true
+						$instance.ConnectionContext.ConnectAsUser = $true
+						$instance.ConnectionContext.ConnectAsUserName = $username
+						$instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
+					}
+					else {
+						$authtype = "SQL Authentication"
+						$instance.ConnectionContext.LoginSecure = $false
+						$instance.ConnectionContext.set_Login($username)
+						$instance.ConnectionContext.set_SecurePassword($Credential.Password)
+					}
+				}
+
+                Write-Verbose "Connecting via SMO to $SqlInstance using $authtype"
+				$instance.ConnectionContext.Connect()
+			}
+			catch {
+				$message = $_.Exception.InnerException.InnerException
+				$message = $message.ToString()
+				$message = ($message -Split '-->')[0]
+				$message = ($message -Split 'at System.Data.SqlClient')[0]
+				$message = ($message -Split 'at System.Data.ProviderBase')[0]
+				Invoke-Catch -Message "Failed to connect to $SqlInstance`: $message "
+            }
+
+            # Checking if we have actually connected to the instance or not
             if ($null -eq $instance.Version) {
                 Invoke-Catch -Message "Failed to connect to $SqlInstance"
             }
@@ -175,7 +225,7 @@ PROCESS {
         Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (v10.X.X) to SQL Server 2014 (v12.X.X). Your instance version is $($instance.Version). Installation cancelled."
     }
     Write-Verbose "SQL Server Version Check passed - Version is $($instance.Version)"
-    
+
     Write-Verbose "Checking if Database $Database exists on $SqlInstance"
     # Verify if database exist in the instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if $database exists")) {
@@ -228,7 +278,7 @@ PROCESS {
         }
     }
     Write-Verbose "oqs schema does not exist"
-    
+
     # Load the installer files
     try {
         Write-Verbose "Loading install routine from $path"
@@ -247,7 +297,7 @@ PROCESS {
         if ($pscmdlet.ShouldProcess("$path\setup\install_sql_agent_job.sql", "Loading Agent Job SQL Query from")) {
             $InstallSQLAgentJob = Get-Content -Path "$path\setup\install_sql_agent_job.sql" -Raw
         }
-     
+
         if ($InstallOQSBase -eq "" -or $InstallOQSGatherStatistics -eq "" -or $InstallServiceBroker -eq "" -or $InstallServiceBrokerCertificate -eq "" -or $InstallSQLAgentJob -eq "") {
             Invoke-Catch -Message "OpenQueryStore install files could not be properly loaded from $path. Please check files and permissions and retry the install."
         }
@@ -285,13 +335,13 @@ PROCESS {
     }
 
 
-    # Ready to install! 
+    # Ready to install!
     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
-    
+
      # Create OQS database
      if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Creating database if not already available.")) {
         try {
-            
+
             Write-Verbose "Creating OQS database [$Database]"
             if (-not ($instance.Databases | Where-Object Name -eq $Database) -and ($CreateDatabase -eq "Yes")) {
                 $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSCreate)
@@ -352,7 +402,7 @@ PROCESS {
             Write-Output "OQS Service Broker installation completed successfully."
             Write-Output "Collection will start after an instance restart or by running 'EXECUTE [master].[dbo].[open_query_store_startup]'."
         }
-    
+
         "SQL Agent" {
             if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Installing Agent Job Query")) {
                 try {
@@ -375,9 +425,9 @@ END {
     }
 
     if ($OQSUninstalled -eq $true) {Break}
-        
+
     if ($OQSMode -eq "centralized") {
-        Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
+        Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases."
     }
     Write-Output ""
     Write-Output ""
@@ -385,9 +435,9 @@ END {
     Write-Output ""
     Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated."
     Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata."
-    Write-Output "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
+    Write-Output "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
     Write-Output ""
-    
+
     if ($SchedulerType -eq "Service Broker") {
         if ($pscmdlet.ShouldProcess("$CertificateBackupFullPath", "Removing OQS Service Broker Certificate file ")) {
             if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
@@ -395,15 +445,15 @@ END {
                     Write-Verbose "Attempting to remove OQS Service Broker certificate"
                     Remove-Item $CertificateBackupFullPath -Force
                     Write-Verbose "Successfully removed OQS Service Broker certificate."
-                    return    
+                    return
                 }
                 catch {
                     Invoke-Catch -Message "Failed to remove OQS Service Broker certificate, please check and remove the file manually ($CertificateBackupFullPath) "
-                }            
+                }
             }
         }
     }
-    
+
     Write-Output "Open Query Store installation successfully completed."
     $OQSUninstalled = $false
 }
