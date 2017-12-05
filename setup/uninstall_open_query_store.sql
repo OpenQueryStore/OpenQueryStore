@@ -82,6 +82,14 @@ IF EXISTS (   SELECT *
     END;
 
 IF EXISTS (   SELECT *
+              FROM   [sys].[procedures] AS [P]
+              WHERE  [P].[object_id] = OBJECT_ID( N'[oqs].[exclude_query_from_dashboard]' )
+          )
+    BEGIN
+        DROP PROC [oqs].[exclude_query_from_dashboard];
+    END;
+
+IF EXISTS (   SELECT *
               FROM   [sys].[tables] AS [T]
               WHERE  [T].[object_id] = OBJECT_ID( N'[oqs].[collection_metadata]' )
           )
@@ -160,7 +168,16 @@ IF EXISTS (   SELECT *
     BEGIN
         DROP TABLE [oqs].[wait_type_filter];
     END;
-	
+
+IF EXISTS (   SELECT *
+              FROM   [sys].[tables] AS [T]
+              WHERE  [T].[object_id] = OBJECT_ID( N'[oqs].[excluded_queries]' )
+          )
+    BEGIN
+        DROP TABLE [oqs].[excluded_queries];
+    END;
+
+
 IF EXISTS (   SELECT *
               FROM   [sys].[views] AS [V]
               WHERE  [V].[object_id] = OBJECT_ID( N'[oqs].[query_stats]' )
@@ -210,7 +227,7 @@ IF EXISTS (   SELECT [name]
     BEGIN
         EXEC  [msdb].[dbo].[sp_delete_category] @class = N'JOB', @name = N'Open Query Store';
     END;
-    
+
 USE [master];
 GO
 
