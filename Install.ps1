@@ -208,11 +208,6 @@ PROCESS {
 				$message = ($message -Split 'at System.Data.ProviderBase')[0]
 				Invoke-Catch -Message "Failed to connect to $SqlInstance`: $message "
             }
-
-            # Checking if we have actually connected to the instance or not
-            if ($null -eq $instance.Version) {
-                Invoke-Catch -Message "Failed to connect to $SqlInstance"
-            }
         }
         catch {
             Invoke-Catch -Message "Failed to connect to $SqlInstance"
