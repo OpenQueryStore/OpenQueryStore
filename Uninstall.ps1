@@ -8,6 +8,9 @@ Remove OQS from the supplied instance/database combination, if it is installed.
 .PARAMETER SqlInstance
 The SQL Server that you're connecting to.
 
+.PARAMETER Credential
+Credential object used to connect to the SQL Server Instance as a different user. This can be a Windows or SQL Server account. Windows users are determined by the existence of a backslash, so if you are intending to use an alternative Windows connection instead of a SQL login, ensure it contains a backslash.
+
 .PARAMETER Database
 Specifies the Database where OQS objects will be created
 
@@ -38,11 +41,18 @@ https://github.com/OpenQueryStore/OpenQueryStore
 
 Will uninstall OQS on instance SQL2012 database named ScooterStore
 
+.EXAMPLE
+$sqlcred = Get-Credential sqladmin
+.\Uninstall.ps1 -SqlInstance SQL2012 -Credential $sqlcred -Database ScooterStore
+
+Will uninstall OQS on instance SQL2012 using sqladmin (SQL Authentication) on database named ScooterStore
 #>
 [CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
+    [Alias("SqlCredential")]
+    [PSCredential]$Credential,
     [parameter(Mandatory = $true)]
     [string]$Database
 )
@@ -60,15 +70,43 @@ BEGIN {
         }
     }
 }
-PROCESS {    
-    
+PROCESS {
+
     # Connect to instance
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
         try {
             $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-            # Checking if we have actually connected to the instance or not 
-            if ($null -eq $instance.Version) {
-                Write-Warning "Failed to connect to $SqlInstance - Quitting"
+
+            try {
+				if ($Credential.username -ne $null) {
+					$username = ($Credential.username).TrimStart("\")
+
+					if ($username -like "*\*") {
+						$username = $username.Split("\")[1]
+						$authtype = "Windows Authentication with Credential"
+						$instance.ConnectionContext.LoginSecure = $true
+						$instance.ConnectionContext.ConnectAsUser = $true
+						$instance.ConnectionContext.ConnectAsUserName = $username
+						$instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
+					}
+					else {
+						$authtype = "SQL Authentication"
+						$instance.ConnectionContext.LoginSecure = $false
+						$instance.ConnectionContext.set_Login($username)
+						$instance.ConnectionContext.set_SecurePassword($Credential.Password)
+					}
+				}
+
+                Write-Verbose "Connecting via SMO to $SqlInstance using $authtype"
+				$instance.ConnectionContext.Connect()
+			}
+			catch {
+				$message = $_.Exception.InnerException.InnerException
+				$message = $message.ToString()
+				$message = ($message -Split '-->')[0]
+				$message = ($message -Split 'at System.Data.SqlClient')[0]
+                $message = ($message -Split 'at System.Data.ProviderBase')[0]
+                Write-Warning -Message "Failed to connect to $SqlInstance`: $message "
                 Break
             }
         }
@@ -86,7 +124,7 @@ PROCESS {
     }
 
     try {
-       
+
         if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Schema")) {
             # If 'oqs' schema doesn't exists in the target database, we assume that OQS is not there
             if (-not ($instance.ConnectionContext.ExecuteScalar($qOQSExists))) {
@@ -102,13 +140,13 @@ PROCESS {
     catch {
         throw $_
     }
-    
+
     # Load the uninstaller files
     try {
         Write-Verbose "Loading uninstall routine from $path"
         if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store.sql", "Loading uninstall SQL Query from")) {
             $UninstallOQSBase = Get-Content -Path "$path\setup\uninstall_open_query_store.sql" -Raw
-     
+
             if ($UninstallOQSBase -eq "") {
                 Write-Warning "OpenQueryStore uninstall file could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
                 Break
@@ -129,7 +167,7 @@ PROCESS {
             # Perform the uninstall
             $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
         }
-        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
+        Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'"
     }
     catch {
         throw $_
