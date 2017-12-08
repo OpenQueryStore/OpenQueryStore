@@ -73,7 +73,7 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [data_cleanup_threshold],
                                             [data_cleanup_throttle]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,0,30,5000);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,1,30,5000);
 GO
 
 CREATE TABLE [oqs].[activity_log]
