@@ -1,7 +1,7 @@
 /*********************************************************************************************
 Open Query Store
 Install table and view infrastructure for Open Query Store
-v0.4 - August 2017
+v0.8 - December 2017
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -45,15 +45,21 @@ GO
 -- Metadata to control OQS
 CREATE TABLE [oqs].[collection_metadata]
     (
-        [command]             nvarchar (2000),         -- The command that should be executed by Service Broker
-        [collection_interval] bigint         NOT NULL, -- The interval for looped processing (in seconds)
-        [oqs_mode]            nvarchar (20)  NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
-        [oqs_classic_db]      nvarchar (128) NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
-        CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
-        [collection_active]   bit            NOT NULL, -- Should OQS be collecting data or not
-        [execution_threshold] tinyint        NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
-        [current_version]     varchar (10)   NOT NULL  -- The version of OQS currently installed
+        [command]                nvarchar (2000) NOT NULL, -- The command that should be executed by Service Broker
+        [collection_interval]    bigint          NOT NULL, -- The interval for looped processing (in seconds)
+        [oqs_mode]               varchar  (11)   NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
+        [oqs_classic_db]         nvarchar (128)  NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
+        [collection_active]      bit             NOT NULL, -- Should OQS be collecting data or not
+        [execution_threshold]    tinyint         NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
+        [data_cleanup_active]    bit             NOT NULL, -- Should OQS automatically clean up old data
+        [data_cleanup_threshold] tinyint         NOT NULL, -- How many days should OQS keep data for (automated cleanup removes data older than this)
+        [data_cleanup_throttle]  smallint        NOT NULL, -- How many rows can be deleted in one pass. This avoids large deletions from trashing the transaction log and blocking OQS tables.
+        CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' ))
     );
+GO
+
+-- Semi-hidden way of documenting the version of OQS that is installed. The value will be automatically bumped upon a new version build/release
+EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.0.3' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
 GO
 
 -- Default values for initial installation = Logging turned on, run every 60 seconds, collection deactivated, execution_threshold = 2 to skip single-use plans
@@ -63,9 +69,11 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [oqs_classic_db],
                                             [collection_active],
                                             [execution_threshold],
-                                            [current_version]
+                                            [data_cleanup_active],
+                                            [data_cleanup_threshold],
+                                            [data_cleanup_throttle]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,'2.0.3');
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,0,30,5000);
 GO
 
 CREATE TABLE [oqs].[activity_log]
@@ -143,6 +151,9 @@ CREATE TABLE [oqs].[queries]
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
 GO
 
+CREATE UNIQUE NONCLUSTERED INDEX uncl_queries_cleanup ON [oqs].[queries] ([query_id],[plan_id]);
+GO
+
 CREATE TABLE [oqs].[excluded_queries]
     (
         [query_id] int NOT NULL,
@@ -191,6 +202,9 @@ CREATE TABLE [oqs].[query_runtime_stats]
         CONSTRAINT [pk_query_runtime_stats]
             PRIMARY KEY CLUSTERED ( [query_id] ASC, [interval_id] ASC )
     ) ON [PRIMARY];
+GO
+
+CREATE UNIQUE NONCLUSTERED INDEX uncl_query_runtime_stats_cleanup ON [oqs].[query_runtime_stats] ([query_id],[interval_id]) INCLUDE ([last_execution_time]);
 GO
 
 CREATE TABLE [oqs].[wait_stats]
@@ -463,4 +477,80 @@ BEGIN
     INSERT INTO [oqs].[excluded_queries] ( [query_id] )
     VALUES ( @query_id )
 END
+GO
+
+CREATE PROCEDURE [oqs].[data_cleanup]
+    @data_cleanup_threshold smallint,
+    @data_cleanup_throttle  smallint
+AS
+    BEGIN
+
+        SELECT @data_cleanup_threshold = [CM].[data_cleanup_threshold],
+               @data_cleanup_throttle  = [CM].[data_cleanup_throttle]
+        FROM   [oqs].[collection_metadata] AS [CM];
+
+        DELETE TOP ( @data_cleanup_throttle )
+        FROM [oqs].[activity_log]
+        WHERE [log_timestamp] < DATEADD( DAY, -@data_cleanup_threshold, GETDATE());
+
+        -- We're going to collect query_ids to allow for a controlled deletion in this purge step
+        -- There are multiple tables to be cleaned up, so we store the deletion candidates in a temp table
+
+        IF OBJECT_ID( 'tempdb..#query_id_deletion_candidates' ) IS NOT NULL
+            DROP TABLE [#query_id_deletion_candidates];
+
+        CREATE TABLE [#query_id_deletion_candidates]
+            (
+                [query_id] int NOT NULL,
+                [plan_id]  int NOT NULL,
+                PRIMARY KEY CLUSTERED ( [query_id], [plan_id] )
+            );
+
+        WITH [deletion_candidates] ( [query_id], [last_execution_date] )
+        AS ( SELECT   [QRS].[query_id],
+                      MAX( [QRS].[last_execution_time] ) AS [last_execution_time]
+             FROM     [oqs].[query_runtime_stats] AS [QRS]
+             GROUP BY [QRS].[query_id]
+           )
+        INSERT INTO [#query_id_deletion_candidates] (   [query_id],
+                                                        [plan_id]
+                                                    )
+                    SELECT [Q].[query_id],
+                           [Q].[plan_id]
+                    FROM   [deletion_candidates]      AS [DC]
+                           INNER JOIN [oqs].[queries] AS [Q] ON [Q].[query_id] = [DC].[query_id]
+                    WHERE  [DC].[last_execution_date] < DATEADD( DAY, -@data_cleanup_threshold, GETDATE());
+        ;
+
+
+        DELETE TOP ( @data_cleanup_throttle )
+        [QRS]
+        FROM [#query_id_deletion_candidates]        AS [QIDC]
+             INNER JOIN [oqs].[query_runtime_stats] AS [QRS] ON [QRS].[query_id] = [QIDC].[query_id];
+
+        DELETE TOP ( @data_cleanup_throttle )
+        [Q]
+        FROM [#query_id_deletion_candidates] AS [QIDC]
+             INNER JOIN [oqs].[queries]      AS [Q] ON [Q].[plan_id] = [QIDC].[plan_id]
+                                                       AND [Q].[query_id] = [QIDC].[query_id];
+
+        DELETE TOP ( @data_cleanup_throttle )
+        [P]
+        FROM  [#query_id_deletion_candidates] AS [QIDC]
+              INNER JOIN [oqs].[plans]        AS [P] ON [P].[plan_id] = [QIDC].[plan_id]
+        WHERE NOT EXISTS ( SELECT * FROM [oqs].[queries] AS [Q] WHERE [P].[plan_id] = [Q].[plan_id] );
+
+        DECLARE @interval_id int;
+
+        -- For wait_stats we identify deletion candidates by getting the youngest interval within the deletion threshold
+        SELECT @interval_id = MAX( [I].[interval_id] )
+        FROM   [oqs].[intervals] AS [I]
+        WHERE  [I].[interval_end] < DATEADD( DAY, -@data_cleanup_threshold, GETDATE());
+
+        DELETE TOP ( @data_cleanup_throttle )
+        FROM [oqs].[wait_stats]
+        WHERE [interval_id] <= @interval_id;
+
+
+    END;
 GO

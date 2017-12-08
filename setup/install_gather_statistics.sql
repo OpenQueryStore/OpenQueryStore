@@ -42,9 +42,17 @@ AS
     DECLARE @log_runtime_stats int;
     DECLARE @log_wait_stats int;
     DECLARE @execution_threshold int;
+    DECLARE @collection_active bit;
+    DECLARE @data_cleanup_active bit;
+    DECLARE @data_cleanup_threshold bit;
+    DECLARE @data_cleanup_throttle bit;
     BEGIN
 
         SET NOCOUNT ON;
+
+        SELECT @collection_active   = [collection_active],
+               @data_cleanup_active = [data_cleanup_active]
+        FROM   [oqs].[collection_metadata];
 
         -- Data collection must be activated for us to actually collect data
         IF  ( SELECT [collection_active] FROM [oqs].[collection_metadata] ) = 1
@@ -492,6 +500,25 @@ AS
                 WHERE (   [waiting_tasks_count] = 0
                           AND [interval_id] = ( SELECT MAX( [interval_id] ) - 1 FROM [oqs].[intervals] )
                       );
+
+                -- Run regular OQS store cleanup if activated
+                IF @data_cleanup_active = 1
+                    BEGIN
+                        IF @logmode = 1
+                            BEGIN
+                                INSERT INTO [oqs].[activity_log] (   [log_run_id],
+                                                                     [log_timestamp],
+                                                                     [log_message]
+                                                                 )
+                                VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore data cleanup process executed.' );
+                            END;
+
+
+                        EXEC [oqs].[data_cleanup] @data_cleanup_threshold = @data_cleanup_threshold,
+                                                  @data_cleanup_throttle = @data_cleanup_throttle;
+
+                    END;
+
 
                 -- And we are done!
                 IF @logmode = 1

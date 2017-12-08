@@ -82,6 +82,14 @@ IF EXISTS (   SELECT *
     END;
 
 IF EXISTS (   SELECT *
+              FROM   [sys].[procedures] AS [P]
+              WHERE  [P].[object_id] = OBJECT_ID( N'[oqs].[data_cleanup]' )
+          )
+    BEGIN
+        DROP PROC [oqs].[data_cleanup];
+    END;
+
+IF EXISTS (   SELECT *
               FROM   [sys].[tables] AS [T]
               WHERE  [T].[object_id] = OBJECT_ID( N'[oqs].[collection_metadata]' )
           )
