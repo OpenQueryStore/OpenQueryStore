@@ -59,7 +59,7 @@ CREATE TABLE [oqs].[collection_metadata]
 GO
 
 -- Semi-hidden way of documenting the version of OQS that is installed. The value will be automatically bumped upon a new version build/release
-EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.0.3' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
+EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.1.0' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
 GO
 
 -- Default values for initial installation = Logging turned on, run every 60 seconds, collection deactivated, execution_threshold = 2 to skip single-use plans
