@@ -41,22 +41,31 @@ IF NOT EXISTS ( SELECT * FROM [sys].[schemas] AS [S] WHERE [S].[name] = 'oqs' )
         EXEC ( 'CREATE SCHEMA oqs' );
     END;
 GO
-
--- Metadata to control OQS
 CREATE TABLE [oqs].[collection_metadata]
     (
         [command]                nvarchar (2000) NOT NULL, -- The command that should be executed by Service Broker
         [collection_interval]    bigint          NOT NULL, -- The interval for looped processing (in seconds)
-        [oqs_mode]               varchar  (11)   NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
+        [oqs_mode]               varchar (11)    NOT NULL, -- The mode that OQS should run in. May only be "classic" or "centralized" 
         [oqs_classic_db]         nvarchar (128)  NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
         [collection_active]      bit             NOT NULL, -- Should OQS be collecting data or not
         [execution_threshold]    tinyint         NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
         [data_cleanup_active]    bit             NOT NULL, -- Should OQS automatically clean up old data
         [data_cleanup_threshold] tinyint         NOT NULL, -- How many days should OQS keep data for (automated cleanup removes data older than this)
         [data_cleanup_throttle]  smallint        NOT NULL, -- How many rows can be deleted in one pass. This avoids large deletions from trashing the transaction log and blocking OQS tables.
-        CONSTRAINT [chk_oqs_mode] CHECK ( [oqs_mode] IN ( N'classic', N'centralized' ))
+
     );
 GO
+
+-- We want to have defaults and checks for certain settings
+ALTER TABLE [oqs].[collection_metadata]
+ADD CONSTRAINT [chk_oqs_mode]           CHECK ( [oqs_mode] IN ( N'classic', N'centralized' )),
+    CONSTRAINT [df_collection_interval] DEFAULT ( 60 )   FOR [collection_interval],
+    CONSTRAINT [df_collection_active]   DEFAULT ( 0 )    FOR [collection_active],
+    CONSTRAINT [df_execution_threshold] DEFAULT ( 2 )    FOR [execution_threshold],
+    CONSTRAINT [df_cleanup_active]      DEFAULT ( 0 )    FOR [data_cleanup_active],
+    CONSTRAINT [df_cleanup_threshold]   DEFAULT ( 2 )    FOR [data_cleanup_threshold],
+    CONSTRAINT [df_cleanup_throttle]    DEFAULT ( 5000 ) FOR [data_cleanup_throttle];
+
 
 -- Semi-hidden way of documenting the version of OQS that is installed. The value will be automatically bumped upon a new version build/release
 EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.1.0' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
@@ -73,7 +82,7 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [data_cleanup_threshold],
                                             [data_cleanup_throttle]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', 60 , '{OQSMode}','{DatabaseWhereOQSIsRunning}',0,2,1,30,5000);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', DEFAULT , '{OQSMode}','{DatabaseWhereOQSIsRunning}',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT);
 GO
 
 CREATE TABLE [oqs].[activity_log]
