@@ -63,7 +63,7 @@ ADD CONSTRAINT [chk_oqs_mode]           CHECK ( [oqs_mode] IN ( N'classic', N'ce
     CONSTRAINT [df_collection_active]   DEFAULT ( 0 )    FOR [collection_active],
     CONSTRAINT [df_execution_threshold] DEFAULT ( 2 )    FOR [execution_threshold],
     CONSTRAINT [df_cleanup_active]      DEFAULT ( 0 )    FOR [data_cleanup_active],
-    CONSTRAINT [df_cleanup_threshold]   DEFAULT ( 2 )    FOR [data_cleanup_threshold],
+    CONSTRAINT [df_cleanup_threshold]   DEFAULT ( 30 )   FOR [data_cleanup_threshold],
     CONSTRAINT [df_cleanup_throttle]    DEFAULT ( 5000 ) FOR [data_cleanup_throttle];
 
 
