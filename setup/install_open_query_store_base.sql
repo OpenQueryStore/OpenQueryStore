@@ -1,7 +1,7 @@
 /*********************************************************************************************
 Open Query Store
 Install table and view infrastructure for Open Query Store
-v0.8 - December 2017
+v0.9 - January 2018
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -136,13 +136,14 @@ CREATE TABLE [oqs].[plans]
         [plan_type]                                 [nvarchar] (50)    NULL,
         [plan_objecttype]                           [nvarchar] (20)    NULL,
         [plan_executionplan]                        [xml]              NULL,
-        [estimated_available_degree_of_parallelism] [int]              NULL,
-        [estimated_statement_subtree_cost]          [numeric] (19, 12) NULL,
-        [estimated_available_memory_grant]          [int]              NULL,
-        [cost_threshold_for_parallelism]            [int]              NULL,
+		[plan_optimization]							[varchar]  (10)    NULL,
+		[xml_processed]								[int]			   NULL
         CONSTRAINT [pk_plans]
             PRIMARY KEY CLUSTERED ( [plan_id] ASC )
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
+GO
+
+ALTER TABLE [oqs].[plans] ADD  CONSTRAINT [DF_plans_xml_processed]  DEFAULT ((0)) FOR [xml_processed]
 GO
 
 CREATE TABLE [oqs].[queries]

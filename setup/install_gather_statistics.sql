@@ -1,7 +1,7 @@
 /*********************************************************************************************
 Open Query Store
 Install gather_statistics for Open Query Store
-v0.7 - November 2017
+v0.8 - January 2018
 
 Copyright:
 William Durkin (@sql_williamd) / Enrico van de Laar (@evdlaar)
@@ -127,8 +127,6 @@ AS
                 -- Start execution plan insertion
                 -- Get plans from the plan cache that do not exist in the OQS_Plans table
                 -- for the database on the current context
-                ;
-                WITH XMLNAMESPACES ( DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan' )
                 INSERT INTO [oqs].[plans] (   [plan_MD5],
                                               [plan_handle],
                                               [plan_firstfound],
@@ -138,13 +136,9 @@ AS
                                               [plan_sizeinbytes],
                                               [plan_type],
                                               [plan_objecttype],
-                                              [plan_executionplan],
-                                              [estimated_available_degree_of_parallelism],
-                                              [estimated_statement_subtree_cost],
-                                              [estimated_available_memory_grant],
-                                              [cost_threshold_for_parallelism]
+                                              [plan_executionplan]
                                           )
-                            SELECT SUBSTRING( [master].[sys].[fn_repl_hash_binary]( CONVERT( varbinary (MAX), [n].[query]( '.' ))), 1, 32 ),
+                            SELECT (qs.query_hash+qs.query_plan_hash),
                                    [cp].[plan_handle],
                                    GETDATE(),
                                    DB_NAME( [pd].[dbid] ),
@@ -153,21 +147,15 @@ AS
                                    [cp].[size_in_bytes],
                                    [cp].[cacheobjtype],
                                    [cp].[objtype],
-                                   [qp].[query_plan],
-                                   [qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableDegreeOfParallelism)[1]', 'int' ) AS [available_degree_of_parallelism],
-                                   CAST([qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/@StatementSubTreeCost)[1]', 'real' ) AS numeric (19, 12))                                      AS [estimated_statement_subtree_cost],
-                                   [qp].[query_plan].[value]( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/OptimizerHardwareDependentProperties/@EstimatedAvailableMemoryGrant)[1]', 'int' )         AS [estimated_available_memory_grant],
-                                   ( SELECT CAST([C].[value_in_use] AS int) FROM   [sys].[configurations] AS [C] WHERE  [C].[name] = 'cost threshold for parallelism' )                                                       AS [cost_threshold_for_parallelism]
+                                   [qp].[query_plan]
                             FROM   [oqs].[plan_dbid] AS [pd]
 							       INNER MERGE JOIN #plan_dbid AS tpdb ON [tpdb].[plan_handle] = [pd].[plan_handle] AND [tpdb].[dbid] = [pd].[dbid]
                                    INNER HASH JOIN [sys].[dm_exec_cached_plans] AS [cp] ON [pd].[plan_handle] = [cp].[plan_handle]
                                    CROSS APPLY [sys].[dm_exec_query_plan]( [cp].[plan_handle] ) AS [qp]
-                                   CROSS APPLY [query_plan].[nodes]( '/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/QueryPlan/RelOp' ) AS [q]([n])
-                                   CROSS APPLY [sys].[dm_exec_sql_text]( [cp].[plan_handle] )
+                                   INNER JOIN sys.dm_exec_query_stats AS [qs] ON [pd].[plan_handle] = [qs].[plan_handle]
                             WHERE  [cp].[cacheobjtype] = 'Compiled Plan'
                                    AND ( [qp].[query_plan] IS NOT NULL )
-                                   AND CONVERT( varbinary, SUBSTRING( [master].[sys].[fn_repl_hash_binary]( CONVERT( varbinary (MAX), [n].[query]( '.' ))), 1, 32 )) NOT IN ( SELECT [plan_MD5] FROM [oqs].[plans] )
-                                   AND [qp].[query_plan].[exist]( '//ColumnReference[@Schema = "[oqs]"]' ) = 0;
+                                   AND (qs.query_hash+qs.query_plan_hash) NOT IN ( SELECT [plan_MD5] FROM [oqs].[plans] );
 
                 SET @log_newplans = @@RowCount;
 
@@ -179,6 +167,24 @@ AS
                                                          )
                         VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore captured ' + CONVERT( varchar, @log_newplans ) + ' new plan(s)...' );
                     END
+
+				-- Now that the plans are stored on disk we are going to retrieve additional plan information
+				-- from the XML plan
+				;WITH XMLNAMESPACES ( DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan' )
+				UPDATE oqs.plans
+				SET plan_optimization = p2.Optimization_level, xml_processed = 1
+				FROM
+					(
+					SELECT
+						p.plan_id,
+						CASE
+						  WHEN Exec_Plans.Plans.value( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/@StatementOptmLevel)[1]', 'varchar') = 'T' THEN 'Trivial'
+						  WHEN Exec_Plans.Plans.value( '(/ShowPlanXML/BatchSequence/Batch/Statements/StmtSimple/@StatementOptmLevel)[1]', 'varchar') = 'F' THEN 'Full'
+						  END AS 'Optimization_level'		
+					FROM oqs.plans p
+					CROSS APPLY plan_executionplan.nodes('.') AS Exec_Plans(Plans)
+					) AS p2
+				WHERE oqs.plans.plan_id = p2.plan_id AND oqs.plans.xml_processed = 0
 
                 -- Grab all of the queries (statement level) that are connected to the plans inside the OQS
                 ;
@@ -220,6 +226,27 @@ AS
                                                          )
                         VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore captured ' + CONVERT( varchar, @log_newqueries ) + ' new queries...' );
                     END;
+
+					-- Remove all the queries that are related to OQS plans
+					;WITH XMLNAMESPACES ( DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan' )
+					DELETE FROM oqs.queries
+					WHERE plan_id IN (
+						SELECT
+							plan_id	
+						FROM oqs.plans p
+						CROSS APPLY plan_executionplan.nodes('.') AS Exec_Plans(Plans)
+						WHERE Exec_Plans.Plans.[exist]( '//ColumnReference[@Schema = "[oqs]"]' ) = 1 )
+
+					-- Remove all the plans that are related to OQS plans
+					;WITH XMLNAMESPACES ( DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan' )
+					DELETE FROM oqs.plans
+					WHERE plan_id IN (
+						SELECT
+							plan_id	
+						FROM oqs.plans p
+						CROSS APPLY plan_executionplan.nodes('.') AS Exec_Plans(Plans)
+						WHERE Exec_Plans.Plans.[exist]( '//ColumnReference[@Schema = "[oqs]"]' ) = 1 )
+
 
                 -- Grab the interval_id of the interval we added at the beginning
                 DECLARE @Interval_ID int;
@@ -545,4 +572,5 @@ AS
                 END;
             END;
     END;
+
 GO
