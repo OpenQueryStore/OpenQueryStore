@@ -133,35 +133,84 @@ AS
                         -- Start execution plan insertion
                         -- Get plans from the plan cache that do not exist in the OQS_Plans table
                         -- for the database on the current context
-                        INSERT INTO [oqs].[plans] ( [plan_MD5],
-                                                    [plan_handle],
-                                                    [plan_firstfound],
-                                                    [plan_database],
-                                                    [plan_refcounts],
-                                                    [plan_usecounts],
-                                                    [plan_sizeinbytes],
-                                                    [plan_type],
-                                                    [plan_objecttype],
-                                                    [plan_executionplan] )
-                                    SELECT ( [qs].[query_hash] + [qs].[query_plan_hash] ),
+                        IF OBJECT_ID( 'tempdb..#plans' ) IS NOT NULL DROP TABLE [#plans];
+                        
+                        SELECT TOP(0)
+                            [plan_MD5],
+                            [plan_handle],
+                            [plan_firstfound],
+                            [plan_database],
+                            [plan_refcounts],
+                            [plan_usecounts],
+                            [plan_sizeinbytes],
+                            [plan_type],
+                            [plan_objecttype],
+                            [plan_executionplan]
+                        INTO #plans
+                        FROM [oqs].[plans];
+
+                        INSERT INTO #plans ( [plan_MD5],
+                            [plan_handle],
+                            [plan_firstfound],
+                            [plan_database],
+                            [plan_refcounts],
+                            [plan_usecounts],
+                            [plan_sizeinbytes],
+                            [plan_type],
+                            [plan_objecttype],
+                            [plan_executionplan] )
+                         SELECT 
+                               [plan_MD5],
+                               [plan_handle],
+                               [plan_firstfound],
+                               [plan_database],
+                               [plan_refcounts],
+                               [plan_usecounts],
+                               [plan_sizeinbytes],
+                               [plan_type],
+                               [plan_objecttype],
+                               [qp].[query_plan] AS [plan_executionplan]
+                         FROM (
+                                  SELECT TOP(2147483645) 
+                                           ( [qs].[query_hash] + [qs].[query_plan_hash] ) AS [plan_MD5],
                                            [cp].[plan_handle],
-                                           GETDATE(),
-                                           DB_NAME( [pd].[dbid] ),
-                                           [cp].[refcounts],
-                                           [cp].[usecounts],
-                                           [cp].[size_in_bytes],
-                                           [cp].[cacheobjtype],
-                                           [cp].[objtype],
-                                           [qp].[query_plan]
+                                           GETDATE() AS [plan_firstfound],
+                                           DB_NAME( [pd].[dbid] ) AS [plan_database],
+                                           [cp].[refcounts] AS [plan_refcounts],
+                                           [cp].[usecounts] AS [plan_usecounts],
+                                           [cp].[size_in_bytes] AS [plan_sizeinbytes],
+                                           [cp].[cacheobjtype] AS [plan_type],
+                                           [cp].[objtype] AS [plan_objecttype]
                                     FROM   [oqs].[plan_dbid]                                            AS [pd]
-                                           INNER MERGE JOIN [#plan_dbid]                                AS [tpdb] ON [tpdb].[plan_handle] = [pd].[plan_handle]
-                                                                                                                     AND [tpdb].[dbid] = [pd].[dbid]
                                            INNER HASH JOIN [sys].[dm_exec_cached_plans]                 AS [cp] ON [pd].[plan_handle] = [cp].[plan_handle]
-                                           CROSS APPLY [sys].[dm_exec_query_plan]( [cp].[plan_handle] ) AS [qp]
                                            INNER JOIN [sys].[dm_exec_query_stats] AS [qs] ON [pd].[plan_handle] = [qs].[plan_handle]
                                     WHERE  [cp].[cacheobjtype] = 'Compiled Plan'
-                                           AND ( [qp].[query_plan] IS NOT NULL )
-                                           AND ( [qs].[query_hash] + [qs].[query_plan_hash] ) NOT IN ( SELECT [plan_MD5] FROM [oqs].[plans] );
+                                           AND EXISTS (
+                                                SELECT * 
+                                                FROM [#plan_dbid] AS [tpdb] 
+                                                WHERE [tpdb].[plan_handle] = [pd].[plan_handle]
+                                                    AND [tpdb].[dbid] = [pd].[dbid]
+                                            )
+                         ) AS [cp]
+                         CROSS APPLY [sys].[dm_exec_query_plan]( [cp].[plan_handle] ) AS [qp]
+                         WHERE ( [qp].[query_plan] IS NOT NULL );
+
+                                                                    
+                                                                    
+                        INSERT INTO [oqs].[plans] ( [plan_MD5],
+                                [plan_handle],
+                                [plan_firstfound],
+                                [plan_database],
+                                [plan_refcounts],
+                                [plan_usecounts],
+                                [plan_sizeinbytes],
+                                [plan_type],
+                                [plan_objecttype],
+                                [plan_executionplan] 
+                        )
+                        SELECT * 
+                        FROM #plans
+                        WHERE [plan_MD5] NOT IN (SELECT [plan_MD5] FROM [oqs].[plans]);
 
                         SET @log_newplans = @@RowCount;
 
@@ -286,46 +335,47 @@ AS
                                                                   [min_logical_writes],
                                                                   [max_logical_writes],
                                                                   [avg_logical_writes] )
-                                    SELECT [oqs_q].[query_id],
+SELECT [oqs_q].[query_id],
                                            @Interval_ID,
-                                           [qs].[creation_time],
-                                           [qs].[last_execution_time],
-                                           [qs].[execution_count],
-                                           [qs].[total_elapsed_time],
-                                           [qs].[last_elapsed_time],
-                                           [qs].[min_elapsed_time],
-                                           [qs].[max_elapsed_time],
+                                           MIN([qs].[creation_time]),
+                                           MAX([qs].[last_execution_time]),
+                                           SUM([qs].[execution_count]),
+                                           SUM([qs].[total_elapsed_time]),
+                                           SUM([qs].[last_elapsed_time]),
+                                           MIN([qs].[min_elapsed_time]),
+                                           MAX([qs].[max_elapsed_time]),
                                            0,
-                                           [qs].[total_rows],
-                                           [qs].[last_rows],
-                                           [qs].[min_rows],
-                                           [qs].[max_rows],
+                                           SUM([qs].[total_rows]),
+                                           SUM([qs].[last_rows]),
+                                           MIN([qs].[min_rows]),
+                                           MAX([qs].[max_rows]),
                                            0,
-                                           [qs].[total_worker_time],
-                                           [qs].[last_worker_time],
-                                           [qs].[min_worker_time],
-                                           [qs].[max_worker_time],
+                                           SUM([qs].[total_worker_time]),
+                                           SUM([qs].[last_worker_time]),
+                                           MIN([qs].[min_worker_time]),
+                                           MAX([qs].[max_worker_time]),
                                            0,
-                                           [qs].[total_physical_reads],
-                                           [qs].[last_physical_reads],
-                                           [qs].[min_physical_reads],
-                                           [qs].[max_physical_reads],
+                                           SUM([qs].[total_physical_reads]),
+                                           SUM([qs].[last_physical_reads]),
+                                           MIN([qs].[min_physical_reads]),
+                                           MAX([qs].[max_physical_reads]),
                                            0,
-                                           [qs].[total_logical_reads],
-                                           [qs].[last_logical_reads],
-                                           [qs].[min_logical_reads],
-                                           [qs].[max_logical_reads],
+                                           SUM([qs].[total_logical_reads]),
+                                           SUM([qs].[last_logical_reads]),
+                                           MIN([qs].[min_logical_reads]),
+                                           MAX([qs].[max_logical_reads]),
                                            0,
-                                           [qs].[total_logical_writes],
-                                           [qs].[last_logical_writes],
-                                           [qs].[min_logical_writes],
-                                           [qs].[max_logical_writes],
+                                           SUM([qs].[total_logical_writes]),
+                                           SUM([qs].[last_logical_writes]),
+                                           MIN([qs].[min_logical_writes]),
+                                           MAX([qs].[max_logical_writes]),
                                            0
                                     FROM   [oqs].[queries]                AS [oqs_q]
                                            INNER JOIN [oqs].[query_stats] AS [qs] ON (   [oqs_q].[query_hash] = [qs].[query_hash]
                                                                                          AND [oqs_q].[query_statement_start_offset] = [qs].[statement_start_offset]
                                                                                          AND [oqs_q].[query_statement_end_offset] = [qs].[statement_end_offset]
-                                                                                         AND [oqs_q].[query_creation_time] = [qs].[creation_time] );
+                                                                                         AND [oqs_q].[query_creation_time] = [qs].[creation_time] )
+                                    GROUP BY [oqs_q].[query_id];
 
                         -- DEBUG: Get current info of the QRS table
                         IF @debug = 1
