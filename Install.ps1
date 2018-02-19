@@ -78,7 +78,7 @@ param (
     [string]$CertificateBackupPath = $ENV:TEMP,
     [string]$JobOwner = "sa",
     [ValidateSet("Yes", "No")]
-    [string]$CreateDatabase = "No"
+    [string]$CreateDatabase = "No",
     [ValidateSet("Yes", "No")]
     [string]$AutoConfigure = "No"
 )
@@ -394,7 +394,7 @@ PROCESS {
         Write-Verbose "Autoconfiguring OQS data collection"
         if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Autoconfiguring OQS data collection: Classic Mode & SQL Agent Scheduler Type")) {
             try {
-                $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSAutoConfigCollection)
+                $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSAutoConfigDatabaseClassic)
             }
             catch {
                 Invoke-Catch -Message "Failed to automagically register [$Database] for $OQSMode and $SchedulerType, please configure manually"
