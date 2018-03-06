@@ -570,23 +570,6 @@ AS
                             WHERE (   [waiting_tasks_count] = 0
                                       AND [interval_id] = ( SELECT MAX( [interval_id] ) - 1 FROM [oqs].[intervals] ));
 
-                            -- Run regular OQS store cleanup if activated
-                            IF @data_cleanup_active = 1
-                                BEGIN
-                                    IF @logmode = 1
-                                        BEGIN
-                                            INSERT INTO [oqs].[activity_log] ( [log_run_id],
-                                                                               [log_timestamp],
-                                                                               [log_message] )
-                                            VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore data cleanup process executed.' );
-                                        END;
-
-								    -- Tidy up time!
-                                    EXEC [oqs].[data_cleanup] @data_cleanup_threshold = @data_cleanup_threshold,
-                                                              @data_cleanup_throttle = @data_cleanup_throttle;
-
-                                END;
-
                             -- And we are done!
                             IF @logmode = 1
                                 BEGIN
@@ -617,5 +600,22 @@ AS
                                                    [log_timestamp],
                                                    [log_message] )
                 VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore data capture not activated. Collection skipped' );
+            END;
+
+        -- Run regular OQS store cleanup if activated
+        IF @data_cleanup_active = 1
+            BEGIN
+                IF @logmode = 1
+                    BEGIN
+                        INSERT INTO [oqs].[activity_log] ( [log_run_id],
+                                                            [log_timestamp],
+                                                            [log_message] )
+                        VALUES ( @log_logrunid, GETDATE(), 'OpenQueryStore data cleanup process executed.' );
+                    END;
+
+                -- Tidy up time!
+                EXEC [oqs].[data_cleanup] @data_cleanup_threshold = @data_cleanup_threshold,
+                                            @data_cleanup_throttle = @data_cleanup_throttle;
+
             END;
     END;
