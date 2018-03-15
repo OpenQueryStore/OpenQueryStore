@@ -165,7 +165,7 @@ AS
     -- The procedure is called at every SQL Server startup
     BEGIN
         SET NOCOUNT ON;
-        EXEC {DatabaseWhereOQSIsRunning}.[oqs].[start_scheduler];
+        EXEC [{DatabaseWhereOQSIsRunning}].[oqs].[start_scheduler];
     END;
 GO
 
