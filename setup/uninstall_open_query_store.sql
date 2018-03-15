@@ -194,6 +194,14 @@ IF EXISTS (   SELECT *
     END;
 
 IF EXISTS (   SELECT *
+              FROM   [sys].[views] AS [V]
+              WHERE  [V].[object_id] = OBJECT_ID( N'[oqs].[object_catalog]' )
+          )
+    BEGIN
+        DROP VIEW [oqs].[object_catalog];
+    END;    
+
+IF EXISTS (   SELECT *
               FROM   [sys].[server_principals] AS [SP]
               WHERE  [SP].[name] = 'open_query_store'
           )
