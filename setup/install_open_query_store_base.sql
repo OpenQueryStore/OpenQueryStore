@@ -49,10 +49,10 @@ CREATE TABLE [oqs].[collection_metadata]
         [oqs_classic_db]         nvarchar (128)  NOT NULL, -- The database where OQS resides in classic mode (must be filled when classic mode is chosen, ignored by centralized mode)
         [collection_active]      bit             NOT NULL, -- Should OQS be collecting data or not
         [execution_threshold]    tinyint         NOT NULL, -- The minimum executions of a query plan before we consider it for capture in OQS
+        [oqs_maximum_size_mb]    smallint        NOT NULL, -- The maximum size in MB that OQS data store should be (actual size can be slightly larger, but this is the "high water mark" to control data collection)
         [data_cleanup_active]    bit             NOT NULL, -- Should OQS automatically clean up old data
         [data_cleanup_threshold] tinyint         NOT NULL, -- How many days should OQS keep data for (automated cleanup removes data older than this)
         [data_cleanup_throttle]  smallint        NOT NULL, -- How many rows can be deleted in one pass. This avoids large deletions from trashing the transaction log and blocking OQS tables.
-
     );
 GO
 
@@ -62,13 +62,14 @@ ADD CONSTRAINT [chk_oqs_mode]           CHECK ( [oqs_mode] IN ( N'classic', N'ce
     CONSTRAINT [df_collection_interval] DEFAULT ( 60 )   FOR [collection_interval],
     CONSTRAINT [df_collection_active]   DEFAULT ( 0 )    FOR [collection_active],
     CONSTRAINT [df_execution_threshold] DEFAULT ( 2 )    FOR [execution_threshold],
+    CONSTRAINT [df_oqs_maximum_size_mb] DEFAULT ( 100 )  FOR [oqs_maximum_size_mb],
     CONSTRAINT [df_cleanup_active]      DEFAULT ( 0 )    FOR [data_cleanup_active],
     CONSTRAINT [df_cleanup_threshold]   DEFAULT ( 30 )   FOR [data_cleanup_threshold],
     CONSTRAINT [df_cleanup_throttle]    DEFAULT ( 5000 ) FOR [data_cleanup_throttle];
 
 
 -- Semi-hidden way of documenting the version of OQS that is installed. The value will be automatically bumped upon a new version build/release
-EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.1.0' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
+EXEC sys.sp_addextendedproperty @name=N'oqs_version', @value=N'2.3.0' , @level0type=N'SCHEMA',@level0name=N'oqs', @level1type=N'TABLE',@level1name=N'collection_metadata'
 GO
 
 -- Default values for initial installation = Logging turned on, run every 60 seconds, collection deactivated, execution_threshold = 2 to skip single-use plans
@@ -78,11 +79,12 @@ INSERT INTO [oqs].[collection_metadata] (   [command],
                                             [oqs_classic_db],
                                             [collection_active],
                                             [execution_threshold],
+											[oqs_maximum_size_mb],
                                             [data_cleanup_active],
                                             [data_cleanup_threshold],
                                             [data_cleanup_throttle]
                                         )
-VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', DEFAULT , '{OQSMode}','{DatabaseWhereOQSIsRunning}',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT);
+VALUES ( N'EXEC [oqs].[gather_statistics] @logmode=1', DEFAULT , '{OQSMode}','{DatabaseWhereOQSIsRunning}',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT);
 GO
 
 CREATE TABLE [oqs].[activity_log]
@@ -563,4 +565,18 @@ AS
 
 
     END;
+GO
+
+CREATE VIEW oqs.object_catalog
+AS
+SELECT o.[name] AS [object_name],
+       o.[object_id] AS [object_id],
+       o.[type] AS [object_type],
+	   ps.row_count,
+	   ( ps.reserved_page_count * 8 ) AS [space_used_kb]
+FROM sys.objects o
+    INNER JOIN sys.schemas s
+        ON o.[schema_id] = s.[schema_id]
+	LEFT JOIN sys.dm_db_partition_stats ps ON ps.object_id = o.object_id AND ps.index_id IN (0,1)
+WHERE s.[name] = 'oqs';
 GO

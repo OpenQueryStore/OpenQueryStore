@@ -154,13 +154,11 @@ ORDER BY TimeDate;</CommandText>
     <DataSet Name="QS_Storage_Size">
       <Query>
         <DataSourceName>LocalServer</DataSourceName>
-        <CommandText>SELECT OBJECT_NAME(object_id) AS 'Table' ,
-       ( reserved_page_count * 8 ) AS 'Size'
-FROM   sys.dm_db_partition_stats
-WHERE  OBJECT_NAME(object_id) IN ( 'Intervals', 'PlanDBID', 'Plans' ,
-                                   'Queries' ,'Query_Runtime_Stats' ,
-                                   'Wait_Stats' ,'Activity_Log','excluded_queries'
-                                 );</CommandText>
+        <CommandText>SELECT 
+	[object_name] AS [Table],
+	[space_used_kb] AS [Size]
+FROM oqs.object_catalog 
+WHERE space_used_kb IS NOT NULL;</CommandText>
         <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
       <Fields>

@@ -38,7 +38,7 @@ GO
 -- Enable the Service Broker for the user database
 DECLARE @db sysname;
 
-SET @db = DB_NAME();
+SET @db = QUOTENAME(DB_NAME());
 
 IF  (   SELECT [is_broker_enabled]
         FROM   [sys].[databases]
@@ -165,7 +165,7 @@ AS
     -- The procedure is called at every SQL Server startup
     BEGIN
         SET NOCOUNT ON;
-        EXEC {DatabaseWhereOQSIsRunning}.[oqs].[start_scheduler];
+        EXEC [{DatabaseWhereOQSIsRunning}].[oqs].[start_scheduler];
     END;
 GO
 

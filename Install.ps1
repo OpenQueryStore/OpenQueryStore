@@ -26,6 +26,9 @@ SQL Login for Agent Job Job Owner - Will default to sa if not specified
 .PARAMETER CreateDatabase
 Create a central OQS database if it isn't already there - Will default to "no" if not specified 
 
+.PARAMETER AutoConfigure
+Automatically sets up data collection, escecially useful in classic mode to quickly start OQS data collection. Defaults to "No".
+
 .NOTES
 Author: Cláudio Silva (@ClaudioESSilva)
         William Durkin (@sql_williamd)
@@ -75,13 +78,17 @@ param (
     [string]$CertificateBackupPath = $ENV:TEMP,
     [string]$JobOwner = "sa",
     [ValidateSet("Yes", "No")]
-    [string]$CreateDatabase = "No"
+    [string]$CreateDatabase = "No",
+    [ValidateSet("Yes", "No")]
+    [string]$AutoConfigure = "No"
 )
 BEGIN {
     $OQSUninstalled = $false
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
     $qOQSCreate = "CREATE DATABASE [$Database]"
+    $qOQSAutoConfigCollection = "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
+    $qOQSAutoConfigDatabaseClassic = "INSERT INTO [oqs].[monitored_databases] ( [database_name] ) VALUES ( '$Database' );"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
     if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
         try {
@@ -288,8 +295,8 @@ PROCESS {
     # Ready to install! 
     Write-Verbose "Installing OQS ($OQSMode & $SchedulerType) on $SqlInstance in $database"
     
-     # Create OQS database
-     if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Creating database if not already available.")) {
+    # Create OQS database
+    if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Creating database if not already available.")) {
         try {
             
             Write-Verbose "Creating OQS database [$Database]"
@@ -367,6 +374,33 @@ PROCESS {
             Write-Output "OQS SQL Agent installation completed successfully. A SQL Agent job has been created WITHOUT a schedule. Please create a schedule to begin data collection."
         }
     }
+
+    # Automatic configuration to get OQS up and running *immediately*
+    if ($AutoConfigure -eq "Yes") {
+        Write-Verbose "Autoconfiguring OQS data collection"
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Autoconfiguring OQS data collection")) {
+            try {
+                $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSAutoConfigCollection)
+            }
+            catch {
+                Invoke-Catch -Message "Failed to automagically configure OQS data collection, please configure manually"
+            }
+        }
+    }
+
+    # Automatic configuration for classic mode & SQL Agent scheduler type = register the OQS database immediately
+    # Service Broker actually constantly re-registers the database when running in classic mode, making this step less important
+    if (($AutoConfigure -eq "Yes") -and ($SchedulerType -eq "SQL Agent") -and ($OQSMode -eq "Classic") ) {
+        Write-Verbose "Autoconfiguring OQS data collection"
+        if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "Autoconfiguring OQS data collection: Classic Mode & SQL Agent Scheduler Type")) {
+            try {
+                $null = $instance.ConnectionContext.ExecuteNonQuery($qOQSAutoConfigDatabaseClassic)
+            }
+            catch {
+                Invoke-Catch -Message "Failed to automagically register [$Database] for $OQSMode and $SchedulerType, please configure manually"
+            }
+        }
+    }
 }
 END {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Disconnect from ")) {
@@ -379,15 +413,17 @@ END {
     if ($OQSMode -eq "centralized") {
         Write-Output "Centralized mode requires databases to be registered for OQS to monitor them. Please add the database names into the table oqs.monitored_databases." 
     }
-    Write-Output ""
-    Write-Output ""
-    Write-Output "USER ACTION REQUIRED:"
-    Write-Output ""
-    Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated."
-    Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata."
-    Write-Output "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
-    Write-Output ""
-    
+
+    if ($AutoConfigure -eq "No") {
+        Write-Output ""
+        Write-Output ""
+        Write-Output "USER ACTION REQUIRED:"
+        Write-Output ""
+        Write-Output "To avoid data collection causing resource issues, OQS data capture is deactivated."
+        Write-Output "Please update the value in column 'collection_active' in table oqs.collection_metadata."
+        Write-Output "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1" 
+        Write-Output ""
+    }
     if ($SchedulerType -eq "Service Broker") {
         if ($pscmdlet.ShouldProcess("$CertificateBackupFullPath", "Removing OQS Service Broker Certificate file ")) {
             if (Test-Path $CertificateBackupFullPath -PathType Leaf) {
