@@ -157,9 +157,13 @@ SET ANSI_NULLS ON;
 GO
 
 SET QUOTED_IDENTIFIER ON;
-GO
+GO		    		    
 
-CREATE PROCEDURE [dbo].[open_query_store_startup]
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'open_query_store_startup')
+    EXEC ('CREATE PROC dbo.open_query_store_startup AS SELECT ''stub version, to be replaced''')
+GO
+		    
+ALTER PROCEDURE [dbo].[open_query_store_startup]
 AS
     -- This stored procedure is used to activate Open Query Store data collection using Service Broker
     -- The procedure is called at every SQL Server startup
