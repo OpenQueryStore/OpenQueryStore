@@ -202,14 +202,6 @@ IF EXISTS (   SELECT *
     END;    
 
 IF EXISTS (   SELECT *
-              FROM   [sys].[server_principals] AS [SP]
-              WHERE  [SP].[name] = 'open_query_store'
-          )
-    BEGIN
-        DROP LOGIN [open_query_store];
-    END;
-
-IF EXISTS (   SELECT *
               FROM   [sys].[certificates] AS [C]
               WHERE  [C].[name] = 'open_query_store'
           )
@@ -222,42 +214,4 @@ IF EXISTS ( SELECT * FROM [sys].[schemas] AS [S] WHERE [S].[name] = 'oqs' )
         EXEC ( 'DROP SCHEMA oqs' );
     END;
 
-USE [msdb];
-GO
-IF EXISTS (   SELECT *
-              FROM   [dbo].[sysjobs] AS [S]
-              WHERE  [S].[name] = 'Open Query Store - Data Collection'
-          )
-    BEGIN
-        EXECUTE [dbo].[sp_delete_job] @job_name = 'Open Query Store - Data Collection',
-                                      @delete_history = 1,
-                                      @delete_unused_schedule = 1;
-    END;
-
-IF EXISTS (   SELECT [name]
-                  FROM   [msdb].[dbo].[syscategories]
-                  WHERE  [name] = N'Open Query Store'
-                         AND [category_class] = 1
-              )
-    BEGIN
-        EXEC  [msdb].[dbo].[sp_delete_category] @class = N'JOB', @name = N'Open Query Store';
-    END;
     
-USE [master];
-GO
-
-IF EXISTS (   SELECT *
-              FROM   [sys].[procedures] AS [P]
-              WHERE  [P].[object_id] = OBJECT_ID( N'[dbo].[open_query_store_startup]' )
-          )
-    BEGIN
-        DROP PROC [dbo].[open_query_store_startup];
-    END;
-
-IF EXISTS (   SELECT *
-              FROM   [sys].[certificates] AS [C]
-              WHERE  [C].[name] = 'open_query_store'
-          )
-    BEGIN
-        DROP CERTIFICATE [open_query_store];
-    END;
