@@ -44,7 +44,9 @@ param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
     [parameter(Mandatory = $true)]
-    [string]$Database
+    [string]$Database,
+    [ValidateSet("Yes", "No")]
+    [string]$InstanceObjects = "No"
 )
 BEGIN {
     $path = Get-Location
@@ -119,6 +121,17 @@ PROCESS {
             $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
         }
         Write-Verbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+    
+        Write-Verbose "Loading OQS uninstall routine from $path for non-db items"
+        if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store_non_db_items.sql", "Loading uninstall SQL Query from")) {
+            $UninstallOQSNonDB = Get-Content -Path "$path\setup\uninstall_open_query_store_non_db_items.sql" -Raw
+    
+           if ($UninstallOQSNonDB -eq "") {
+                Write-Warning "OpenQueryStore uninstall file for non-db items could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."		
+                Break
+            }
+        }
+        Write-Verbose "OQS uninstall routine successfully loaded from $path for non-db items. Uninstall can continue."
     }
     catch {
         throw $_
