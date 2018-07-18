@@ -141,6 +141,14 @@ PROCESS {
         if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "UnInstalling Base Query")) {
             # Perform the uninstall
             $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+
+            if ($pscmdlet.ShouldProcess("$SqlInstance", "UnInstalling Instance related objects")) {
+                if ($InstanceObjects -eq $TRUE) {
+                    # Perform the uninstall for non db-specific items
+                    $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSNonDB)
+                    Write-Verbose "Open Query Store uninstallation complete for non-db items on instance '$SqlInstance'" 
+                }
+            }
         }
         Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
     }
