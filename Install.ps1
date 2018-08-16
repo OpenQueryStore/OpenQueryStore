@@ -86,6 +86,8 @@ BEGIN {
     $OQSUninstalled = $false
     $path = Get-Location
     $qOQSExists = "SELECT TOP 1 1 FROM [$Database].[sys].[schemas] WHERE [name] = 'oqs'"
+    $qOQSStartupProcExists = "SELECT 1 FROM MASTER.INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'open_query_store_startup'"
+    $qOQSNonDBInstalled = $false
     $qOQSCreate = "CREATE DATABASE [$Database]"
     $qOQSAutoConfigCollection = "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
     $qOQSAutoConfigDatabaseClassic = "INSERT INTO [oqs].[monitored_databases] ( [database_name] ) VALUES ( '$Database' );"
@@ -120,6 +122,17 @@ BEGIN {
                 $UninstallOQSBase = $UninstallOQSBase -replace "{DatabaseWhereOQSIsRunning}", "$Database"
             }
             Write-Verbose "OQS uninstall routine successfully loaded from $path. Uninstall can continue."
+
+            Write-Verbose "Loading OQS uninstall routine from $path for non-db items"
+            if ($pscmdlet.ShouldProcess("$path\setup\uninstall_open_query_store_non_db_items.sql", "Loading uninstall SQL Query from")) {
+                $UninstallOQSNonDB = Get-Content -Path "$path\setup\uninstall_open_query_store_non_db_items.sql" -Raw
+
+                if ($UninstallOQSNonDB -eq "") {
+                    Write-Warning "OpenQueryStore uninstall file for non-db items could not be properly loaded from $path. Please check files and permissions and retry the uninstall routine. Uninstallation cancelled."
+                    Break
+                }
+            }
+            Write-Verbose "OQS uninstall routine successfully loaded from $path for non-db items. Uninstall can continue."
         }
         catch {
             throw $_
@@ -127,8 +140,17 @@ BEGIN {
 
         try {
             if ($pscmdlet.ShouldProcess("$SqlInstance - $Database", "UnInstalling Base Query")) {
-                # Perform the uninstall
+                # Perform the uninstall for db-specific items
                 $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
+
+                # If 'oqs' startup procedure already exists, we assume that OQS is already installed and the startup procedure and other non-db items should not be removed
+                if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Startup Procedure")) {
+                    if ($qOQSNonDBInstalled -eq $TRUE) {
+                        # Perform the uninstall for non db-specific items
+                        $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSNonDB)
+                        Write-Verbose "Open Query Store uninstallation complete for non-db items on instance '$SqlInstance'" 
+                    }
+                }
             }
             Write-Verbose "Open Query Store uninstallation complete in database [$database] on instance '$SqlInstance'" 
         }
@@ -151,6 +173,7 @@ BEGIN {
         $Script:OQSError = $_.Exception
         if ($Uninstall) {
             Write-Warning "There was an error at $Message - Running Uninstall then quitting - Error details are in `$OQSError"
+            Write-Verbose "`$OQSError: $OQSError"
             Uninstall-OQS
         }
         else {
@@ -191,6 +214,14 @@ PROCESS {
         }
     }
     Write-Verbose "Database $Database exists on $SqlInstance"
+
+    Write-Verbose "Checking the Compatibility Level of Database $Database on $SqlInstance"
+    # We only support between SQL Server 2008 (version100) and SQL Server 2014 (version120)
+    $CompLevel=$instance.databases|where-Object Name -eq $Database|select CompatibilityLevel
+    if ($CompLevel.CompatibilityLevel -replace "Version" -lt 100 -or $CompLevel.CompatibilityLevel -replace "Version" -gt 120 ) {
+       Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (version100) to SQL Server 2014 (version120). Your database compatibility level is $($CompLevel.CompatibilityLevel). Installation cancelled."
+    }
+    Write-Verbose "Database compatibility Check passed - Compatibility is $($CompLevel.CompatibilityLevel)"
 
     # If we are installing Service Broker for scheduling, we need to do housekeeping for the certificate
     if ($InstallationType -eq "Service Broker") {
@@ -236,6 +267,16 @@ PROCESS {
     }
     Write-Verbose "oqs schema does not exist"
     
+    Write-Verbose "Checking for oqs startup procedure in database MASTER on $SqlInstance"
+    # If 'oqs' startup procedure already exists, we assume that OQS is already installed
+    if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking for OQS Startup Procedure")) {
+        if ($instance.ConnectionContext.ExecuteScalar($qOQSStartupProcExists)) {
+            # Parameter set to TRUE, so we know which objects must be removed, after installation failure
+            $qOQSNonDBInstalled = $TRUE
+        }
+    }
+    Write-Verbose "Check for oqs startup procedure passed"
+
     # Load the installer files
     try {
         Write-Verbose "Loading install routine from $path"
