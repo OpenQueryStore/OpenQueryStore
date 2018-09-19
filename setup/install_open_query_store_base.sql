@@ -430,10 +430,10 @@ SELECT [sql_handle],
        [max_elapsed_time],' + 
 CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_hash],' +											-- query_hash appears in sql 2008
 CASE WHEN @MajorVersion = 9 THEN 'CAST(NULL as binary (8)) ' ELSE '' END + '[query_plan_hash],' +										-- query_plan_hash appears in sql 2008
-CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_rows],' +	-- total_rows appears in sql 2008r2 SP1
-CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_rows],' +	-- last_rows appears in sql 2008r2 SP1
-CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_rows],' +	-- min_rows appears in sql 2008r2 SP1
-CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_rows],' +	-- max_rows appears in sql 2008r2 SP1
+CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50) OR ( @MajorVersion = 10 AND @MinorVersion = 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_rows],' +	-- total_rows appears in sql 2008r2 SP1
+CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50) OR ( @MajorVersion = 10 AND @MinorVersion = 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[last_rows],' +	-- last_rows appears in sql 2008r2 SP1
+CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50) OR ( @MajorVersion = 10 AND @MinorVersion = 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[min_rows],' +	-- min_rows appears in sql 2008r2 SP1
+CASE WHEN @MajorVersion = 9 OR ( @MajorVersion = 10 AND @MinorVersion < 50) OR ( @MajorVersion = 10 AND @MinorVersion = 50 AND @BuildVersion < 2500 ) THEN 'CAST(0 as bigint) ' ELSE '' END + '[max_rows],' +	-- max_rows appears in sql 2008r2 SP1
 CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as varbinary (64)) ' ELSE '' END + '[statement_sql_handle],' +								-- statement_sql_handle appears in sql 2014
 CASE WHEN @MajorVersion < 12 THEN 'CAST(NULL as bigint) ' ELSE '' END + '[statement_context_id],' +										-- statement_context_id appears in sql 2014
 CASE WHEN @MajorVersion < 13 THEN 'CAST(0 as bigint) ' ELSE '' END + '[total_dop],' +													-- total_dop appears in sql 2016
