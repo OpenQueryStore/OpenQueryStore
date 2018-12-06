@@ -118,6 +118,7 @@ BEGIN {
         [CmdletBinding(SupportsShouldProcess = $True)]
         Param()
         $OQSUninstalled = $True
+        $qOQSNonDBInstalled = $True
         # Load the uninstaller files
         try {
             Write-Verbose "Loading uninstall routine from $path"
