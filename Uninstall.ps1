@@ -8,6 +8,9 @@ Remove OQS from the supplied instance/database combination, if it is installed.
 .PARAMETER SqlInstance
 The SQL Server that you're connecting to.
 
+.PARAMETER SqlCredential
+Credential object used to connect to the SQL Server Instance as a different user. This can be a Windows or SQL Server account. Windows users are determined by the existence of a backslash, so if you are intending to use an alternative Windows connection instead of a SQL login, ensure it contains a backslash.
+
 .PARAMETER Database
 Specifies the Database where OQS objects will be created
 
@@ -38,11 +41,19 @@ https://github.com/OpenQueryStore/OpenQueryStore
 
 Will uninstall OQS on instance SQL2012 database named ScooterStore
 
+.EXAMPLE
+$cred = Get-Credential
+.\Uninstall.ps1 -SqlInstance SQL2012 -Database ScooterStore -SqlCredential $cred
+
+Will uninstall OQS on instance SQL2012 database named ScooterStore using SQL Authentication
+
 #>
 [CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
+	[Alias("SqlCredential")]
+    [PSCredential]$Credential,
     [parameter(Mandatory = $true)]
     [string]$Database,
     [ValidateSet("Yes", "No")]
@@ -68,9 +79,37 @@ PROCESS {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
         try {
             $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-            # Checking if we have actually connected to the instance or not 
-            if ($null -eq $instance.Version) {
-                Write-Warning "Failed to connect to $SqlInstance - Quitting"
+
+            try {
+				if ($Credential.username -ne $null) {
+					$username = ($Credential.username).TrimStart("\")
+
+					if ($username -like "*\*") {
+						$username = $username.Split("\")[1]
+						$authtype = "Windows Authentication with Credential"
+						$instance.ConnectionContext.LoginSecure = $true
+						$instance.ConnectionContext.ConnectAsUser = $true
+						$instance.ConnectionContext.ConnectAsUserName = $username
+						$instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
+					}
+					else {
+						$authtype = "SQL Authentication"
+						$instance.ConnectionContext.LoginSecure = $false
+						$instance.ConnectionContext.set_Login($username)
+						$instance.ConnectionContext.set_SecurePassword($Credential.Password)
+					}
+				}
+
+                Write-Verbose "Connecting via SMO to $SqlInstance using $authtype"
+				$instance.ConnectionContext.Connect()
+			}
+			catch {
+				$message = $_.Exception.InnerException.InnerException
+				$message = $message.ToString()
+				$message = ($message -Split '-->')[0]
+				$message = ($message -Split 'at System.Data.SqlClient')[0]
+                $message = ($message -Split 'at System.Data.ProviderBase')[0]
+                Write-Warning -Message "Failed to connect to $SqlInstance`: $message "
                 Break
             }
         }
@@ -143,7 +182,7 @@ PROCESS {
             $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSBase)
 
             if ($pscmdlet.ShouldProcess("$SqlInstance", "UnInstalling Instance related objects")) {
-                if ($InstanceObjects -eq $TRUE) {
+                if ($InstanceObjects -eq "Yes") {
                     # Perform the uninstall for non db-specific items
                     $null = $instance.ConnectionContext.ExecuteNonQuery($UninstallOQSNonDB)
                     Write-Verbose "Open Query Store uninstallation complete for non-db items on instance '$SqlInstance'" 

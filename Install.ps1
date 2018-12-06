@@ -8,6 +8,9 @@ Verify if OQS is not already installed on destination database and if not will r
 .PARAMETER SqlInstance
 The SQL Server that you're connecting to.
 
+.PARAMETER SqlCredential
+Credential object used to connect to the SQL Server Instance as a different user. This can be a Windows or SQL Server account. Windows users are determined by the existence of a backslash, so if you are intending to use an alternative Windows connection instead of a SQL login, ensure it contains a backslash.
+
 .PARAMETER Database
 Specifies the Database where OQS objects will be created
 
@@ -62,11 +65,20 @@ Will install the Classic version on instance SQL2012 database named ScooterStore
 
 Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling.
 
+.EXAMPLE
+$cred = Get-Credential
+.\Install.ps1 -SqlInstance "SQL2012" -Database "db3" -OQSMode "Centralized" -SchedulerType "SQL Agent" -SqlCredential $cred
+
+Will install the centralized version on instance SQL2012 database named db3 and use the SQL Agent for scheduling using SQL Authentication
+
+
 #>
 [CmdletBinding(SupportsShouldProcess = $True)]
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
+	[Alias("SqlCredential")]
+    [PSCredential]$Credential,
     [parameter(Mandatory = $true)]
     [string]$Database,
     [parameter(Mandatory = $true)]
@@ -89,8 +101,8 @@ BEGIN {
     $qOQSStartupProcExists = "SELECT 1 FROM MASTER.INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'open_query_store_startup'"
     $qOQSNonDBInstalled = $false
     $qOQSCreate = "CREATE DATABASE [$Database]"
-    $qOQSAutoConfigCollection = "UPDATE [oqs].[collection_metadata] SET [collection_active] = 1"
-    $qOQSAutoConfigDatabaseClassic = "INSERT INTO [oqs].[monitored_databases] ( [database_name] ) VALUES ( '$Database' );"
+    $qOQSAutoConfigCollection = "UPDATE [$Database].[oqs].[collection_metadata] SET [collection_active] = 1"
+    $qOQSAutoConfigDatabaseClassic = "INSERT INTO [$Database].[oqs].[monitored_databases] ( [database_name] ) VALUES ( '$Database' );"
     $CertificateBackupFullPath = Join-Path -Path $CertificateBackupPath  -ChildPath "open_query_store.cer"
     if ($pscmdlet.ShouldProcess("SQL Server SMO", "Loading Assemblies")) {
         try {
@@ -188,10 +200,37 @@ PROCESS {
     if ($pscmdlet.ShouldProcess("$SqlInstance", "Connecting to with SMO")) {
         try {
             $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
-            Write-Verbose "Connecting via SMO to $SqlInstance"
-            # Checking if we have actually connected to the instance or not 
-            if ($null -eq $instance.Version) {
-                Invoke-Catch -Message "Failed to connect to $SqlInstance"
+
+            try {
+				if ($Credential.username -ne $null) {
+					$username = ($Credential.username).TrimStart("\")
+
+					if ($username -like "*\*") {
+						$username = $username.Split("\")[1]
+						$authtype = "Windows Authentication with Credential"
+						$instance.ConnectionContext.LoginSecure = $true
+						$instance.ConnectionContext.ConnectAsUser = $true
+						$instance.ConnectionContext.ConnectAsUserName = $username
+						$instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
+					}
+					else {
+						$authtype = "SQL Authentication"
+						$instance.ConnectionContext.LoginSecure = $false
+						$instance.ConnectionContext.set_Login($username)
+						$instance.ConnectionContext.set_SecurePassword($Credential.Password)
+					}
+				}
+
+                Write-Verbose "Connecting via SMO to $SqlInstance using $authtype"
+				$instance.ConnectionContext.Connect()
+			}
+			catch {
+				$message = $_.Exception.InnerException.InnerException
+				$message = $message.ToString()
+				$message = ($message -Split '-->')[0]
+				$message = ($message -Split 'at System.Data.SqlClient')[0]
+				$message = ($message -Split 'at System.Data.ProviderBase')[0]
+				Invoke-Catch -Message "Failed to connect to $SqlInstance`: $message "
             }
         }
         catch {
