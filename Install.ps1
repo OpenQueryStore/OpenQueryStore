@@ -77,7 +77,7 @@ Will install the centralized version on instance SQL2012 database named db3 and 
 param (
     [parameter(Mandatory = $true)]
     [string]$SqlInstance,
-	[Alias("SqlCredential")]
+    [Alias("SqlCredential")]
     [PSCredential]$Credential,
     [parameter(Mandatory = $true)]
     [string]$Database,
@@ -203,35 +203,35 @@ PROCESS {
             $instance = New-Object Microsoft.SqlServer.Management.Smo.Server $SqlInstance
 
             try {
-				if ($Credential.username -ne $null) {
-					$username = ($Credential.username).TrimStart("\")
+                if ($null -ne $Credential.username) {
+                    $username = ($Credential.username).TrimStart("\")
 
-					if ($username -like "*\*") {
-						$username = $username.Split("\")[1]
-						$authtype = "Windows Authentication with Credential"
-						$instance.ConnectionContext.LoginSecure = $true
-						$instance.ConnectionContext.ConnectAsUser = $true
-						$instance.ConnectionContext.ConnectAsUserName = $username
-						$instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
-					}
-					else {
-						$authtype = "SQL Authentication"
-						$instance.ConnectionContext.LoginSecure = $false
-						$instance.ConnectionContext.set_Login($username)
-						$instance.ConnectionContext.set_SecurePassword($Credential.Password)
-					}
-				}
+                    if ($username -like "*\*") {
+                        $username = $username.Split("\")[1]
+                        $authtype = "Windows Authentication with Credential"
+                        $instance.ConnectionContext.LoginSecure = $true
+                        $instance.ConnectionContext.ConnectAsUser = $true
+                        $instance.ConnectionContext.ConnectAsUserName = $username
+                        $instance.ConnectionContext.ConnectAsUserPassword = ($Credential).GetNetworkCredential().Password
+                    }
+                    else {
+                        $authtype = "SQL Authentication"
+                        $instance.ConnectionContext.LoginSecure = $false
+                        $instance.ConnectionContext.set_Login($username)
+                        $instance.ConnectionContext.set_SecurePassword($Credential.Password)
+                    }
+                }
 
                 Write-Verbose "Connecting via SMO to $SqlInstance using $authtype"
-				$instance.ConnectionContext.Connect()
-			}
-			catch {
-				$message = $_.Exception.InnerException.InnerException
-				$message = $message.ToString()
-				$message = ($message -Split '-->')[0]
-				$message = ($message -Split 'at System.Data.SqlClient')[0]
-				$message = ($message -Split 'at System.Data.ProviderBase')[0]
-				Invoke-Catch -Message "Failed to connect to $SqlInstance`: $message "
+                $instance.ConnectionContext.Connect()
+            }
+            catch {
+                $message = $_.Exception.InnerException.InnerException
+                $message = $message.ToString()
+                $message = ($message -Split '-->')[0]
+                $message = ($message -Split 'at System.Data.SqlClient')[0]
+                $message = ($message -Split 'at System.Data.ProviderBase')[0]
+                Invoke-Catch -Message "Failed to connect to $SqlInstance`: $message "
             }
         }
         catch {
@@ -257,14 +257,23 @@ PROCESS {
 
     Write-Verbose "Checking the Compatibility Level of Database $Database on $SqlInstance"
     # We only support between SQL Server 2008 (version100) and SQL Server 2014 (version120)
-    $CompLevel=$instance.databases|where-Object Name -eq $Database|select CompatibilityLevel
+    $CompLevel = $instance.databases | Where-Object Name -eq $Database | Select-Object CompatibilityLevel
     if ($CompLevel.CompatibilityLevel -replace "Version" -lt 100 -or $CompLevel.CompatibilityLevel -replace "Version" -gt 120 ) {
-       Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (version100) to SQL Server 2014 (version120). Your database compatibility level is $($CompLevel.CompatibilityLevel). Installation cancelled."
+        Invoke-Catch -Message "OQS is only supported between SQL Server 2008 (version100) to SQL Server 2014 (version120). Your database compatibility level is $($CompLevel.CompatibilityLevel). Installation cancelled."
     }
     Write-Verbose "Database compatibility Check passed - Compatibility is $($CompLevel.CompatibilityLevel)"
 
     # If we are installing Service Broker for scheduling, we need to do housekeeping for the certificate
     if ($InstallationType -eq "Service Broker") {
+        
+        Write-Verbose "Checking if Database $Database has Service Broker activated on $SqlInstance"
+        if ($pscmdlet.ShouldProcess("$SqlInstance", "Checking if service broker is enabled in $database")) {
+            if (-not ($instance.Databases | Where-Object Name -eq $Database) -and ($BrokerEnabled -eq $True)) {
+                Invoke-Catch -Message "Service Broker is not enabled in [$Database] on instance $SqlInstance. This is a blocking operation, please enable service broker and re-run this installer."
+            }
+        }
+        Write-Verbose "Service Broker is enabled in $Database on $SqlInstance"
+
         Write-Verbose "Checking Certificate Backup Path $CertificateBackupPath exists"
         #Does the path specified even exist and is it accessible?
         if (-not (Test-Path $CertificateBackupPath -PathType Container)) {
